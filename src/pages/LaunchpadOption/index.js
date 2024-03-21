@@ -209,7 +209,6 @@ const LaunchpadOption = (props) => {
 	};
 
 	const currencyToggleItem = (e, index) => {
-		console.log("index, val", index);
 		e.preventDefault();
 		details.data[index].active = !details.data[index].active;
 		handleformData({
@@ -357,7 +356,7 @@ const LaunchpadOption = (props) => {
 		<React.Fragment>
 			<div className="page-content">
 				<Helmet>
-					<title>LaunchpadOption | LFinance</title>
+					<title>LaunchpadOption | LFi</title>
 				</Helmet>
 				<Container fluid>
 					{/* Render Breadcrumbs */}
@@ -726,7 +725,10 @@ const LaunchpadOption = (props) => {
 																									details?.type ===
 																									"refundType"
 																										? "Refund Type "
-																										: "Routers "
+																										: details?.type ===
+																										  "router"
+																										? "Routers "
+																										: "Stages "
 																								}`}
 																								<button
 																									type="button"

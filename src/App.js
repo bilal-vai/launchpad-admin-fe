@@ -6,7 +6,6 @@ import { connect } from "react-redux";
 import { userRoutes, authRoutes } from "./routes";
 import PrivateRoute from "./common/PrivateRoute";
 import Error404 from "./pages/Errors/Error404";
-
 // layouts Format
 import VerticalLayout from "./components/VerticalLayout/";
 import HorizontalLayout from "./components/HorizontalLayout/";

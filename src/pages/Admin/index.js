@@ -204,27 +204,37 @@ const Admin = (props) => {
 				customBodyRender: (data) => {
 					return (
 						<div className="text-center">
-							<HasAnyPermission
-								permission={["admin update", "admin view"]}
-							>
-								<button
-									onClick={(e) => handleAddEditModal(data)}
-									type="button"
-									className="btn btn-soft-primary waves-effect waves-light"
+							{data?.roles?.[0]?.name !== "Administrator" && (
+								<HasAnyPermission
+									permission={["admin update", "admin view"]}
 								>
-									<i className="bx bx-edit-alt font-size-16 align-middle"></i>
-								</button>
-							</HasAnyPermission>
+									<button
+										onClick={(e) =>
+											handleAddEditModal(data)
+										}
+										type="button"
+										className="btn btn-soft-primary waves-effect waves-light"
+									>
+										<i className="bx bx-edit-alt font-size-16 align-middle"></i>
+									</button>
+								</HasAnyPermission>
+							)}
 							&nbsp;
-							<HasAnyPermission permission={["admin delete"]}>
-								<button
-									onClick={(e) => removeItem(data._id)}
-									type="button"
-									className="btn btn-soft-danger waves-effect waves-light"
-								>
-									<i className="bx bx-trash font-size-16 align-middle"></i>
-								</button>
-							</HasAnyPermission>
+							{data?.roles?.[0]?.name !== "Administrator" && (
+								<HasAnyPermission permission={["admin delete"]}>
+									<button
+										onClick={(e) => removeItem(data._id)}
+										type="button"
+										disabled={
+											data?.roles?.[0]?.name ===
+											"Administrator"
+										}
+										className="btn btn-soft-danger waves-effect waves-light"
+									>
+										<i className="bx bx-trash font-size-16 align-middle"></i>
+									</button>
+								</HasAnyPermission>
+							)}
 						</div>
 					);
 				},
@@ -260,7 +270,7 @@ const Admin = (props) => {
 		<React.Fragment>
 			<div className="page-content">
 				<Helmet>
-					<title>Admin | LFinance</title>
+					<title>Admin | LFi</title>
 				</Helmet>
 				<Container fluid>
 					{/* Render Breadcrumbs */}

@@ -23,6 +23,10 @@ import LightDark from "../CommonForBoth/Menus/LightDark";
 
 // import images
 import logo from "../../assets/images/logo_lyo.png";
+import lfi_logo from "../../assets/images/lfi-scan-logo.svg";
+import lfi_logo_dark from "../../assets/images/lfi-scan-logo-light.svg";
+import lfi_logo_icon from "../../assets/images/lfi-scan-icon-grayscale.svg";
+
 import github from "../../assets/images/brands/github.png";
 import bitbucket from "../../assets/images/brands/bitbucket.png";
 import dribbble from "../../assets/images/brands/dribbble.png";
@@ -50,21 +54,21 @@ const Header = (props) => {
 						<div className="navbar-brand-box">
 							<Link to="/dashboard" className="logo logo-dark">
 								<span className="logo-sm">
-									<img src={logo} alt="" height="24" />
+									<img src={lfi_logo_icon} alt="" height="24" />
 								</span>
 								<span className="logo-lg">
-									<img src={logo} alt="" height="24" />
-									<span className="logo-txt">LFinance</span>
+									<img src={lfi_logo} alt="" height="24" />
+									{/* <span className="logo-txt">LFinance</span> */}
 								</span>
 							</Link>
 
 							<Link to="/dashboard" className="logo logo-light">
 								<span className="logo-sm">
-									<img src={logo} alt="" height="24" />
+									<img src={lfi_logo_icon} alt="" height="24" />
 								</span>
 								<span className="logo-lg">
-									<img src={logo} alt="" height="24" />
-									<span className="logo-txt">LFinance</span>
+									<img src={lfi_logo_dark} alt="" height="24" />
+									{/* <span className="logo-txt">LFinance</span> */}
 								</span>
 							</Link>
 						</div>

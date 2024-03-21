@@ -2,9 +2,15 @@ import React from "react";
 import Breadcrumbs from "../../components/Common/Breadcrumb";
 import { Container, Card, CardBody, Col, Row } from "reactstrap";
 import moment from "moment";
+import LaunchpadPieChart from "./LaunchpadPieChart";
+import Transaction from "./Transaction";
+import HasAnyPermission from "../../common/Permission";
+import PendingBridgeTransactions from "./PendingBridgeTransactions";
+import BridgeInfo from "./BridgeInfo";
+import BridgeInfoLyo from "./BridgeInfoLyo";
 
 const Dashboard = () => {
-	document.title = "Admin Dashboard | LFinance";
+	document.title = "Admin Dashboard | LFi";
 
 	const formatValue = (val, formatter = 2) => {
 		return isNaN(parseFloat(val))
@@ -75,8 +81,28 @@ const Dashboard = () => {
 				<Container fluid>
 					{/* Render Breadcrumbs */}
 					<Breadcrumbs title="Dashboard" breadcrumbItem="Dashboard" />
-
-					<Row></Row>
+					<Row>
+						<HasAnyPermission
+							permission={["launchpad dashboard"]}
+						>
+							<LaunchpadPieChart />
+						</HasAnyPermission>
+					</Row>
+					<Row>
+						<HasAnyPermission
+							permission={["launchpad dashboard"]}
+						>
+							<Transaction />
+						</HasAnyPermission>
+					</Row>
+					<Row>
+						<HasAnyPermission
+							permission={["bridge dashboard"]}
+						>
+							<BridgeInfo/>
+						</HasAnyPermission>
+					</Row>
+					
 				</Container>
 			</div>
 		</React.Fragment>

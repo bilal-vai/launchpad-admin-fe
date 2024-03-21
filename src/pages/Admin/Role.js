@@ -375,7 +375,7 @@ const Role = (props) => {
 		<React.Fragment>
 			<div className="page-content">
 				<Helmet>
-					<title>Admin Role | LFinance</title>
+					<title>Admin Role | LFi</title>
 				</Helmet>
 				<Container fluid>
 					{/* Render Breadcrumbs */}

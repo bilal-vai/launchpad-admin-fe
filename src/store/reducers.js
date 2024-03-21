@@ -9,6 +9,8 @@ import launchpadOption from "./launchpadOption/reducer";
 import launchpad from "./launchpad/reducer";
 import admin from "./admin/reducer";
 import dashboard from "./dashboard/reducer";
+import networkInfo from "./networkInfo/reducer";
+import  bridge from "./bridge/reducer"
 
 const rootReducer = combineReducers({
 	Layout,
@@ -17,6 +19,8 @@ const rootReducer = combineReducers({
 	launchpad,
 	admin,
 	dashboard,
+	networkInfo,
+	bridge
 });
 
 export default rootReducer;

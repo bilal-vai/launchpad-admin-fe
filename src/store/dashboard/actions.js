@@ -1,12 +1,9 @@
 import {
 	ERRORS,
 	CLEAR_RESPONSE,
-	TOTAL_PIX_TRANSACTION_REQUEST,
-	TOTAL_PIX_TRANSACTION_FAILURE,
-	TOTAL_PIX_TRANSACTION_SUCCESS,
-	TOTAL_PIX_CLIENT_REQUEST,
-	TOTAL_PIX_CLIENT_FAILURE,
-	TOTAL_PIX_CLIENT_SUCCESS,
+	GET_TOTAL_LAUNCHPAD_REQUEST,
+	GET_TOTAL_LAUNCHPAD_SUCCESS,
+	GET_TOTAL_LAUNCHPAD_FAILURE,
 } from "./actionTypes";
 
 export const clearResponse = () => {
@@ -16,15 +13,9 @@ export const clearResponse = () => {
 	};
 };
 
-export const totalTransaction = (data) => {
+export const getTotalLaunchpad = (data) => {
 	return {
-		type: TOTAL_PIX_TRANSACTION_REQUEST,
-		payload: data,
-	};
-};
-export const totalClient = (data) => {
-	return {
-		type: TOTAL_PIX_CLIENT_REQUEST,
+		type: GET_TOTAL_LAUNCHPAD_REQUEST,
 		payload: data,
 	};
 };

@@ -24,6 +24,7 @@ import {
 } from "../../store/auth/actions";
 // import images
 import logo from "../../assets/images/logo_lyo.png";
+import lfi_logo from "../../assets/images/lfi-scan-logo.svg";
 //Import config
 import CarouselPage from "./CarouselPage";
 import { toast } from "react-toastify";
@@ -76,7 +77,6 @@ const Login = (props) => {
 			email: Yup.string().required("Please Enter Your Email"),
 		}),
 		onSubmit: (values) => {
-			console.log("values", values);
 			dispatch(forgotPassword(values));
 		},
 	});
@@ -112,7 +112,7 @@ const Login = (props) => {
 		dispatch(clearResponse());
 	};
 
-	document.title = "Forgot Password | LFinance";
+	document.title = "Forgot Password | LFi";
 
 	return (
 		<React.Fragment>
@@ -129,13 +129,13 @@ const Login = (props) => {
 												className="d-block auth-logo"
 											>
 												<img
-													src={logo}
+													src={lfi_logo}
 													alt=""
 													height="28"
 												/>{" "}
-												<span className="logo-txt">
+												{/* <span className="logo-txt">
 													LFinance
-												</span>
+												</span> */}
 											</Link>
 										</div>
 
@@ -478,7 +478,7 @@ const Login = (props) => {
 										<div className="mt-4 mt-md-5 text-center">
 											<p className="mb-0">
 												© {new Date().getFullYear()}{" "}
-												LFinance
+												LFi
 											</p>
 										</div>
 									</div>

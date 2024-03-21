@@ -26,7 +26,7 @@ import { toast } from "react-toastify";
 import Swal from "sweetalert2";
 
 const UserProfile = () => {
-	document.title = "Profile | LFinance";
+	document.title = "Profile | LFi";
 	const dispatch = useDispatch();
 	const emailInputRef = useRef(null);
 	const { response, auth, errors } = useSelector((state) => ({

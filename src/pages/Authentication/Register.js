@@ -24,11 +24,12 @@ import { Link } from "react-router-dom";
 
 // import images
 import logo from "../../assets/images/logo-sm.svg";
+import lfi_logo from "../../assets/images/lfi-scan-logo.svg";
 import CarouselPage from "../Authentication/CarouselPage";
 
 const Register = (props) => {
 	//meta title
-	document.title = "Register | LFinance";
+	document.title = "Register | LFi";
 
 	const dispatch = useDispatch();
 
@@ -76,13 +77,13 @@ const Register = (props) => {
 												className="d-block auth-logo"
 											>
 												<img
-													src={logo}
+													src={lfi_logo}
 													alt=""
 													height="28"
 												/>{" "}
-												<span className="logo-txt">
+												{/* <span className="logo-txt">
 													LFinance
-												</span>
+												</span> */}
 											</Link>
 										</div>
 										<div className="auth-content my-auto">
@@ -91,7 +92,7 @@ const Register = (props) => {
 													Register Account
 												</h5>
 												<p className="text-muted mt-2">
-													Get your free LFinance
+													Get your free LFi
 													account now.
 												</p>
 											</div>
@@ -243,7 +244,7 @@ const Register = (props) => {
 												<div className="mb-4">
 													<p className="mb-0">
 														By registering you agree
-														to the LFinance{" "}
+														to the LFi{" "}
 														<Link
 															to="#"
 															className="text-primary"
@@ -278,7 +279,7 @@ const Register = (props) => {
 										<div className="mt-4 mt-md-5 text-center">
 											<p className="mb-0">
 												© {new Date().getFullYear()}{" "}
-												LFinance
+												LFi
 											</p>
 										</div>
 									</div>

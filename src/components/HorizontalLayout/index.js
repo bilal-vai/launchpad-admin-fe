@@ -50,7 +50,7 @@ const Layout = (props) => {
 		const title = location.pathname;
 		let currentage = title.charAt(1).toUpperCase() + title.slice(2);
 
-		document.title = currentage + " | LFinance - Admin & Dashboard";
+		document.title = currentage + " | LFi - Admin & Dashboard";
 	}, [location.pathname]);
 
 	useEffect(() => {

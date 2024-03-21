@@ -59,6 +59,10 @@ body {
   float: right;
 }
 
+label.timer {
+  white-space: nowrap;
+}
+
 /* rating**/
 .rating-container {
   background-color: transparent !important;
@@ -210,3 +214,39 @@ span.flatpickr-weekday {
 .carousel-indicators [data-bs-target]{
   font-size: 0;
 }
+
+
+  .info-primary{
+    border-left: 3px solid #00c2ff;
+  }
+
+  .info-success{
+    border-left: 3px solid #36ce75;
+  }
+
+  
+  .info-secondary{
+    border-left: 3px solid #FF2400;
+  }
+
+  .info-pending{
+    border-left: 3px solid #F1EB9C;
+  }
+
+  .info-done{
+    border-left: 3px solid #D8BFD8;
+  }
+
+
+  .info-volume{
+    border-left: 3px solid #7FFFD4;
+  }
+
+
+  .info-approve-pending{
+    border-left: 3px solid #FF00FF;
+  }
+
+  .info-total-locked{
+    border-left: 3px solid #DB5844;
+  }

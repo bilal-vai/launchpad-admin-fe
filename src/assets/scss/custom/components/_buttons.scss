@@ -192,3 +192,7 @@ body[data-layout-mode="dark"] {
         box-shadow: 0 0 0 $btn-focus-width rgba($gray-dark-300, .5);
     }
 }
+
+.btn-custom{
+    min-width: 112px;
+}

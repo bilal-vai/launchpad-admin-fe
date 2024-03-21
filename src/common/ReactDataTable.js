@@ -36,6 +36,13 @@ export default class ReactDataTable extends Component {
 		if (this.props.setRefresh) {
 			this.props.setRefresh.current = this.getDataList;
 		}
+		if (this.props?.getLoaderStatus) {
+			this.props.getLoaderStatus.current = this.getIsLoading;
+		}
+	};
+
+	getIsLoading = () => {
+		return this.state.isLoading;
 	};
 
 	getDataList = async () => {
@@ -121,6 +128,10 @@ export default class ReactDataTable extends Component {
 
 	handleFilterSubmit = (applyFilters) => {
 		applyFilters();
+		this.setState({
+			page: 1,
+			// noMatch: "Sorry, no matching records found.",
+		});
 		this.getDataList();
 	};
 
@@ -153,7 +164,7 @@ export default class ReactDataTable extends Component {
 				},
 			},
 			rowsPerPage: this.state.rowsPerPage,
-			rowsPerPageOptions: [10, 20, 50, 100, 1000, 50000, 100000],
+			rowsPerPageOptions: [10, 20, 50, 100, 1000],
 			confirmFilters: true,
 			expandableRowsHeader: false,
 			rowsExpanded: rowsExpanded,
@@ -284,17 +295,25 @@ export default class ReactDataTable extends Component {
 					if (filter?.[0]) {
 						filter = filter.map((item) => {
 							try {
-								let isValidDate = new Date(item);
-								if (isNaN(isValidDate)) {
+								if (
+									this.props.columns[index].name === "date" ||
+									this.props.columns[index].name ===
+										"createdAt"
+								) {
+									let isValidDate = new Date(item);
+									if (isNaN(isValidDate)) {
+										return item;
+									}
+									return `${isValidDate.getFullYear()}-${
+										isValidDate.getMonth() + 1
+									}-${
+										isValidDate.getDate() > 9
+											? isValidDate.getDate()
+											: "0" + isValidDate.getDate()
+									}`;
+								} else {
 									return item;
 								}
-								return `${isValidDate.getFullYear()}-${
-									isValidDate.getMonth() + 1
-								}-${
-									isValidDate.getDate() > 9
-										? isValidDate.getDate()
-										: "0" + isValidDate.getDate()
-								}`;
 							} catch (error) {
 								return item;
 							}

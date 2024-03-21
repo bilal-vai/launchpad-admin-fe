@@ -1,26 +1,15 @@
 import {
 	ERRORS,
 	CLEAR_RESPONSE,
-	TOTAL_PIX_TRANSACTION_FAILURE,
-	TOTAL_PIX_TRANSACTION_SUCCESS,
-	TOTAL_PIX_TRANSACTION_REQUEST,
-	TOTAL_PIX_CLIENT_REQUEST,
-	TOTAL_PIX_CLIENT_FAILURE,
-	TOTAL_PIX_CLIENT_SUCCESS,
+	GET_TOTAL_LAUNCHPAD_REQUEST,
+	GET_TOTAL_LAUNCHPAD_SUCCESS,
+	GET_TOTAL_LAUNCHPAD_FAILURE,
 } from "./actionTypes";
 
 const initialState = {
 	errors: {},
 	response: {},
-	loader: false,
-	pixTranscations: {
-		details: {},
-		isLoading: false,
-	},
-	pixClients: {
-		details: {},
-		isLoading: false,
-	},
+	totalLunchpadInfo: { isLoading: false, details: {} },
 };
 
 const reducer = (state = initialState, action) => {
@@ -39,44 +28,31 @@ const reducer = (state = initialState, action) => {
 				response: {},
 			};
 
-		case TOTAL_PIX_TRANSACTION_SUCCESS:
-		case TOTAL_PIX_TRANSACTION_FAILURE:
+		case GET_TOTAL_LAUNCHPAD_REQUEST:
 			return {
 				...state,
-				pixTranscations: {
-					...state.pixTranscations,
-					details: action.payload,
-					isLoading: false,
-				},
-			};
-		case TOTAL_PIX_TRANSACTION_REQUEST:
-			return {
-				...state,
-				pixTranscations: {
-					...state.pixTranscations,
+				totalLunchpadInfo: {
+					...state.totalLunchpadInfo,
 					isLoading: true,
 				},
 			};
-		case TOTAL_PIX_CLIENT_SUCCESS:
-		case TOTAL_PIX_CLIENT_FAILURE:
+		case GET_TOTAL_LAUNCHPAD_SUCCESS:
 			return {
 				...state,
-				pixClients: {
-					...state.pixClients,
-					details: action.payload,
+				totalLunchpadInfo: {
 					isLoading: false,
+					details: action.payload?.data,
 				},
 			};
 
-		case TOTAL_PIX_CLIENT_REQUEST:
+		case GET_TOTAL_LAUNCHPAD_FAILURE:
 			return {
 				...state,
-				pixClients: {
-					...state.pixClients,
-					isLoading: true,
+				totalLunchpadInfo: {
+					isLoading: false,
+					details: action.payload?.data,
 				},
 			};
-
 		default:
 			return state;
 	}

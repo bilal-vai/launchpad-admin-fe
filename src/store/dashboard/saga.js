@@ -1,62 +1,36 @@
 import { call, put, takeEvery, takeLatest } from "redux-saga/effects";
 import {
-	TOTAL_PIX_TRANSACTION_REQUEST,
-	TOTAL_PIX_TRANSACTION_FAILURE,
-	TOTAL_PIX_TRANSACTION_SUCCESS,
-	TOTAL_PIX_CLIENT_REQUEST,
-	TOTAL_PIX_CLIENT_FAILURE,
-	TOTAL_PIX_CLIENT_SUCCESS,
+	GET_TOTAL_LAUNCHPAD_REQUEST,
+	GET_TOTAL_LAUNCHPAD_SUCCESS,
+	GET_TOTAL_LAUNCHPAD_FAILURE,
 } from "./actionTypes";
 
-import { totalTransaction, totalClient } from "./services";
+import { getTotalLaunchpadService } from "./services";
 
-function* totalPIXTransaction({ payload }) {
+function* getTotalLaunchpad({ payload }) {
 	try {
-		const response = yield call(totalTransaction, payload);
+		const response = yield call(getTotalLaunchpadService, payload);
 		if (response.status === 200) {
 			yield put({
-				type: TOTAL_PIX_TRANSACTION_SUCCESS,
+				type: GET_TOTAL_LAUNCHPAD_SUCCESS,
 				payload: response.data,
 			});
 		} else {
 			yield put({
-				type: TOTAL_PIX_TRANSACTION_FAILURE,
-				payload: {},
-			});
-		}
-	} catch (err) {
-		yield put({
-			type: TOTAL_PIX_TRANSACTION_FAILURE,
-			payload: {},
-		});
-	}
-}
-
-function* totalPIXClient({ payload }) {
-	try {
-		const response = yield call(totalClient, payload);
-		if (response.status === 200) {
-			yield put({
-				type: TOTAL_PIX_CLIENT_SUCCESS,
+				type: GET_TOTAL_LAUNCHPAD_FAILURE,
 				payload: response.data,
 			});
-		} else {
-			yield put({
-				type: TOTAL_PIX_CLIENT_FAILURE,
-				payload: {},
-			});
 		}
 	} catch (err) {
 		yield put({
-			type: TOTAL_PIX_CLIENT_FAILURE,
+			type: GET_TOTAL_LAUNCHPAD_FAILURE,
 			payload: {},
 		});
 	}
 }
 
 function* saga() {
-	yield takeEvery(TOTAL_PIX_TRANSACTION_REQUEST, totalPIXTransaction);
-	yield takeEvery(TOTAL_PIX_CLIENT_REQUEST, totalPIXClient);
+	yield takeEvery(GET_TOTAL_LAUNCHPAD_REQUEST, getTotalLaunchpad);
 }
 
 export default saga;

@@ -1,5 +1,10 @@
-import React, { useEffect, useState, useRef, useMemo } from "react";
-//Import Breadcrumb
+import React, {
+	useEffect,
+	useState,
+	useCallback,
+	useRef,
+	useMemo,
+} from "react";
 import Breadcrumbs from "../../components/Common/Breadcrumb";
 import { Helmet } from "react-helmet";
 import {
@@ -11,21 +16,14 @@ import {
 	Modal,
 	ModalHeader,
 	ModalBody,
-	FormFeedback,
-	Form,
-	Label,
-	Input,
-	CardTitle,
 	NavItem,
 	TabContent,
 	TabPane,
 	NavLink,
-	FormGroup,
-	InputGroup,
-	CardHeader,
+	Input,
+	Label,
 } from "reactstrap";
 import { Link } from "react-router-dom";
-
 import classnames from "classnames";
 import * as Yup from "yup";
 import { useFormik } from "formik";
@@ -36,6 +34,7 @@ import HasAnyPermission from "../../common/Permission";
 import hasPermission from "../../common/HasPermission";
 import ReactDataTable from "../../common/ReactDataTable";
 import isEmpty from "../../utils/isEmpty";
+import stringToBoolean from "../../utils/stringToBoolean";
 import yupValidImageSrc from "../../utils/yupValidImageSrc";
 import { apiUrl } from "../../config";
 import {
@@ -44,56 +43,206 @@ import {
 	remove,
 	toggle,
 	clearResponse,
+	getNetworkInfo,
+	getTokenDetails,
 	getLaunchpadOptions,
+	getLaunchpadDeployHistory,
+	deploy,
+	clearTokenResponse,
+	clearNotification,
+	clearStageResponse,
+	toggleSwap,
+	updateStage,
+	toggleStageSwap,
+	deployUpdatedStage,
+	getUpdatedLaunchpad,
+	getLauchpadStages,
 } from "../../store/launchpad/actions";
 import Swal from "sweetalert2";
 //Import Flatepicker
 import "flatpickr/dist/themes/material_blue.css";
-import Flatpickr from "react-flatpickr";
+import moment from "moment";
+import "../../assets/scss/launchpad.scss";
+import { Switch } from "@mui/material";
+import VerifyTokenStepOne from "./VerifyTokenStepOne";
+import StageDetailStepSecond from "./StageDetailStepSecond";
+import AdditionalInfoStepThird from "./AdditionalInfoStepThird";
+import TeamTokenomicWhitepaperInfoStepFour from "./TeamTokenomicWhitepaperInfoStepFour";
+import ReviewStepFive from "./ReviewStepFive";
+
+import ListingStageInfo from "./ListingStageInfo";
+import StageModal from "./StageModal";
+import TeamInfoModal from "./TeamInfoModal";
+import TokenomicModal from "./TokenomicModal";
+import DeployInfoModal from "./DeployInfoModal";
+
+let editor;
+let whitePaperEditor;
+const SUPPORTED_FORMATS = ["image/jpg", "image/jpeg", "image/gif", "image/png"];
 
 const Launchpad = (props) => {
 	const dispatch = useDispatch();
 	const refreshTableData = useRef(null);
-	const { response, auth, launchpad } = useSelector((state) => ({
-		response: state.launchpad.response,
+	const getLoaderStatus = useRef(null);
+	const { auth, launchpad } = useSelector((state) => ({
 		auth: state.auth,
 		launchpad: state.launchpad,
 	}));
+	const {
+		lauchpadDeployHistory,
+		isLoading,
+		isDeploying,
+		stageResponse,
+		deployStageResponse,
+		updatedLaunchpadResponse,
+		updatedLaunchpadStages,
+	} = launchpad;
 
+	useEffect(() => {
+		dispatch(getNetworkInfo());
+	}, []);
+
+	const [listingStageInfo, setListingStageInfo] = useState({
+		isOpenModal: false,
+	});
+
+	const { response, notifications, networkInfo } = launchpad;
 	const [isOpenAddEditModal, toggleAddEditModal] = useState(false);
+	const [stageModalDetails, toggleStageModal] = useState({
+		active: false,
+		action: "add",
+		isDirectInsert: false,
+	});
+	const [teamInfoModalDetails, toggleTeamInfoModal] = useState({
+		active: false,
+		action: "add",
+	});
+	const [teamInfoIndex, setTeamInfoIndex] = useState(0);
+
+	const [tokenomicModalDetails, toggleTokenomicModal] = useState({
+		active: false,
+		action: "add",
+	});
+
+	const [networkDetails, setNetworkDetails] = useState({});
+
+	const [tokenomicDetailsIndex, setTokenomicDetailsIndex] = useState(0);
+
+	const [stageDetailIndex, setStageDetailIndex] = useState(0);
 	const [activeTabFormStep, setActiveTabFormStep] = useState(1);
 	const [currencyFeeOptions, setCurrencyFeeOptions] = useState([]);
 
+	const [stageDetails, handleStageFormData] = useState([
+		{
+			stage: "",
+			isExchangeList: false,
+			presaleRate: "",
+			listingRate: "",
+			liquidity: "",
+			softcap: "",
+			hardcap: "",
+			minimumBuy: "",
+			maximumBuy: "",
+			refundType: "",
+			router: "",
+			liquidityLockup: "",
+			vesting: "",
+			cliffing: "",
+			totalDays: "",
+			startDate: "",
+			endDate: "",
+			currencyRateDetails: [],
+			active: false,
+		},
+	]);
+
+	const [teamInfo, handleTeamInfoFormData] = useState([
+		{
+			name: "",
+			linkedin: "",
+			image: "",
+			url: "",
+			designation: "",
+			active: false,
+		},
+	]);
+
+	const [tokenomicDetails, handleTokenomicFormData] = useState([
+		{
+			name: "",
+			value: "",
+			active: false,
+		},
+	]);
+
+	const [whitepaper, handleWhitePapersFormData] = useState({
+		path: "",
+		url: "",
+		uploadFile: null,
+	});
+
 	const [details, handleformData] = useState({
 		tokenAddress: "",
+		network: "",
 		tokenName: "",
 		tokenSymbol: "",
 		tokenDecimal: "",
-		currency: "",
+		tokenTotalSupply: "",
+		tokenOwnerAddress: "",
+		currency: [],
+		fee: "",
 		feeOption: "",
 		listingOption: "",
-		presaleRate: "",
-		whiteList: "",
-		softcap: "",
-		hardcap: "",
-		minimumBuy: "",
-		maximumBuy: "",
-		refundType: "",
-		router: "",
-		liquidity: "",
-		listingRate: "",
-		liquidityLockup: "",
-		startDate: "",
-		endDate: "",
-		description: "",
 		additionalInfo: {},
+	});
+
+	const [deployInfo, setDeployInfo] = useState({
+		isOpenModal: false,
+		launchpad: {},
 	});
 
 	const [launchpadOptions, setLaunchpadOption] = useState({});
 
+	const [deployDetails, setDeployDetails] = useState({
+		isOpenModal: false,
+		details: {},
+	});
+
 	useEffect(() => {
 		dispatch(getLaunchpadOptions());
 	}, [dispatch]);
+
+	const handleChangeNetwork = (e) => {
+		e.preventDefault();
+		const networkDetails = networkInfo?.find(
+			(network) => network.name === e.target.value
+		);
+
+		const nativeCurrency = networkDetails?.currencies?.find(
+			(curr) => curr.isNative
+		);
+		const currency = getSelectedCurrencyOption(
+			[nativeCurrency.name, "USDT"],
+			e.target.value
+		);
+
+		validationForFirstStep?.setFieldValue("currency", currency);
+		setNetworkDetails({ ...networkDetails });
+	};
+
+	const handleChangeCurrency = (values, action) => {
+		if (action.action === "clear") {
+			toast.error("You can't remove all selected currencies.");
+		} else if (
+			(action.action === "remove-value" &&
+				action?.removedValue?.isNative === true) ||
+			action?.removedValue?.value === "USDT"
+		) {
+			toast.error("You can't remove this selected currencies.");
+		} else {
+			validationForFirstStep.setFieldValue("currency", values);
+		}
+	};
 
 	useEffect(() => {
 		const options = {};
@@ -102,14 +251,11 @@ const Launchpad = (props) => {
 			if (launchpadOption.type === "currency") {
 				handleformData({
 					...details,
-					currency: launchpadOption.data[0].name,
+					// currency: [],
 					feeOption: launchpadOption.data[0].feeOption[0],
 				});
 				setCurrencyFeeOptions(launchpadOption.data[0].feeOption);
-				validationForFirstStep.setFieldValue(
-					"currency",
-					launchpadOption.data[0].name
-				);
+				// validationForFirstStep.setFieldValue("currency", []);
 				validationForFirstStep.setFieldValue(
 					"feeOption",
 					launchpadOption.data[0].feeOption[0]
@@ -120,33 +266,110 @@ const Launchpad = (props) => {
 	}, [launchpad.launchpadOptions]);
 
 	useEffect(() => {
-		if (response && response.code === "200") {
+		let { tokenSymbol, tokenDecimal, tokenName, tokenTotalSupply } =
+			launchpad.tokenDetailResponse?.data ?? {};
+		tokenName = tokenName ? tokenName : null;
+		tokenSymbol = tokenSymbol ? tokenSymbol : null;
+		tokenDecimal = tokenDecimal ? tokenDecimal : null;
+		tokenTotalSupply = tokenTotalSupply ? tokenTotalSupply : null;
+		validationForFirstStep.setFieldValue("tokenName", tokenName);
+		validationForFirstStep.setFieldValue("tokenSymbol", tokenSymbol);
+		validationForFirstStep.setFieldValue("tokenDecimal", tokenDecimal);
+		validationForFirstStep.setFieldValue(
+			"tokenTotalSupply",
+			tokenTotalSupply
+		);
+	}, [launchpad.tokenDetailResponse]);
+
+	const onEditorChange = (data) => {
+		validationForThirdStep.setFieldValue("description", data);
+	};
+
+	useEffect(() => {
+		if (notifications && notifications.code === "200") {
+			Swal.close();
 			refreshTableData.current();
 			if (isOpenAddEditModal) toggleAddEditModal(!isOpenAddEditModal);
-			toast.success(response.msg, {
+			toast.success(notifications.msg, {
 				onOpen: () => {
-					dispatch(clearResponse());
+					dispatch(clearNotification());
 				},
 			});
-		} else if (response && response?.msg) {
+		} else if (notifications && notifications?.msg) {
+			Swal.close();
 			refreshTableData.current();
-			toast.error(response.msg, {
+			toast.error(notifications.msg, {
 				onOpen: () => {
-					dispatch(clearResponse());
+					dispatch(clearNotification());
 				},
 			});
 		}
-	}, [dispatch, response]);
+	}, [dispatch, notifications]);
+
+	useEffect(() => {
+		if (stageResponse && stageResponse.code === "200") {
+			if (stageResponse?.data) {
+				handleStageFormData(stageResponse.data);
+			}
+			Swal.close();
+			toast.success(stageResponse.msg, {
+				onOpen: () => {
+					dispatch(clearStageResponse());
+				},
+			});
+		} else if (stageResponse && stageResponse?.msg) {
+			Swal.close();
+			toast.error(stageResponse.msg, {
+				onOpen: () => {
+					dispatch(clearStageResponse());
+				},
+			});
+		}
+	}, [dispatch, stageResponse]);
+
+	useEffect(() => {
+		if (deployStageResponse && deployStageResponse.code === "200") {
+			if (deployStageResponse?.data) {
+				setDeployInfo({
+					isOpenModal: deployInfo.isOpenModal,
+					launchpad: deployStageResponse.data,
+				});
+			}
+			Swal.close();
+			toast.success(deployStageResponse.msg, {
+				onOpen: () => {
+					dispatch(clearStageResponse());
+				},
+			});
+		} else if (deployStageResponse && deployStageResponse?.msg) {
+			Swal.close();
+			toast.error(deployStageResponse.msg, {
+				onOpen: () => {
+					dispatch(clearStageResponse());
+				},
+			});
+		}
+	}, [dispatch, deployStageResponse]);
+
+	useEffect(() => {
+		// dispatch(getLaunchpadOptions());
+	}, [dispatch]);
 
 	const toggleTab = async (tab, previous = false) => {
 		if (activeTabFormStep !== tab) {
 			if (previous) setActiveTabFormStep(tab);
 			else {
-				if (tab >= 1 && tab <= 4) {
+				if (tab >= 1 && tab <= 5) {
 					if (tab === 2) {
 						const result =
 							await validationForFirstStep.validateForm();
-						if (isEmpty(result)) {
+						if (
+							isEmpty(result) &&
+							isEmpty(
+								launchpad.tokenDetailResponse?.errors
+									?.tokenAddress
+							)
+						) {
 							setActiveTabFormStep(tab);
 						} else {
 							validationForFirstStep.handleSubmit();
@@ -155,7 +378,11 @@ const Launchpad = (props) => {
 						const result =
 							await validationForSecondStep.validateForm();
 						if (isEmpty(result)) {
-							setActiveTabFormStep(tab);
+							if (stageDetails.length && stageDetails[0].active) {
+								setActiveTabFormStep(tab);
+							} else {
+								toast.error("Please add atleast one stage");
+							}
 						} else {
 							validationForSecondStep.handleSubmit();
 						}
@@ -193,39 +420,45 @@ const Launchpad = (props) => {
 		}
 	};
 
-	const toggleItem = (id) => {
-		if (!isEmpty(id)) {
-			dispatch(toggle(id));
-		}
-	};
-
-	const useFormikOptionsForFirstStep = {
-		enableReinitialize: true,
-		initialValues: {
+	const getInitialValueForFirstStep = useMemo(() => {
+		let initialValues = {
 			tokenAddress:
 				details && details.tokenAddress ? details.tokenAddress : "",
 			tokenName: details && details.tokenName ? details.tokenName : "",
+			network: details && details.network ? details.network : "",
 			tokenSymbol:
 				details && details.tokenSymbol ? details.tokenSymbol : "",
 			tokenDecimal:
 				details && details.tokenDecimal ? details.tokenDecimal : "",
-			currency: details && details.currency ? details.currency : "",
+			tokenTotalSupply:
+				details && details.tokenTotalSupply
+					? details.tokenTotalSupply
+					: "",
+			tokenOwnerAddress:
+				details && details.tokenOwnerAddress
+					? details.tokenOwnerAddress
+					: "",
 			feeOption:
 				details && details.feeOption ? details.feeOption.fee : "",
-			// feeOption:
-			// 	details && details.feeOption
-			// 		? details.feeOption
-			// 		: {
-			// 				fee: "",
-			// 				description: "",
-			// 		  },
+			fee: details && details.fee ? details.fee : "",
 			listingOption:
 				details && details.listingOption ? details.listingOption : "",
-		},
+		};
+		initialValues["currency"] =
+			details && details.currency ? details.currency : [];
+		return initialValues;
+	}, [isOpenAddEditModal, listingStageInfo.isOpenModal]);
+
+	const useFormikOptionsForFirstStep = {
+		enableReinitialize: true,
+		initialValues: getInitialValueForFirstStep,
 		validationSchema: Yup.object({
 			tokenAddress: Yup.string().required(),
-			feeOption: Yup.string().required(),
-			currency: Yup.string().required(),
+			tokenOwnerAddress: Yup.string().required(),
+			network: Yup.string().required(),
+			// feeOption: Yup.string().required(),
+			fee: Yup.string().required(),
+			currency: Yup.array().required(),
 		}),
 		onSubmit: (values) => {},
 	};
@@ -234,40 +467,8 @@ const Launchpad = (props) => {
 
 	const useFormikOptionsForSecondStep = {
 		enableReinitialize: true,
-		initialValues: {
-			presaleRate:
-				details && details.presaleRate ? details.presaleRate : "",
-			whiteList: details && details.currency ? details.currency : "",
-			softcap: details && details.whiteList ? details.whiteList : "",
-			hardcap: details && details.hardcap ? details.hardcap : "",
-			minimumBuy: details && details.minimumBuy ? details.minimumBuy : "",
-			maximumBuy: details && details.maximumBuy ? details.maximumBuy : "",
-			refundType: details && details.refundType ? details.refundType : "",
-			router: details && details.router ? details.router : "",
-			liquidity: details && details.liquidity ? details.liquidity : "",
-			listingRate:
-				details && details.listingRate ? details.listingRate : "",
-			liquidityLockup:
-				details && details.liquidityLockup
-					? details.liquidityLockup
-					: "",
-			startDate: details && details.startDate ? details.startDate : "",
-			endDate: details && details.endDate ? details.endDate : "",
-		},
-		validationSchema: Yup.object({
-			presaleRate: Yup.string().required(),
-			softcap: Yup.string().required(),
-			hardcap: Yup.string().required(),
-			minimumBuy: Yup.string().required(),
-			maximumBuy: Yup.string().required(),
-			refundType: Yup.string().required(),
-			liquidity: Yup.string().required(),
-			listingRate: Yup.string().required(),
-			liquidityLockup: Yup.string().required(),
-			router: Yup.string().required(),
-			startDate: Yup.date().required(),
-			endDate: Yup.date().required(),
-		}),
+		initialValues: {},
+		validationSchema: Yup.object({}),
 		onSubmit: (values) => {},
 	};
 
@@ -306,7 +507,21 @@ const Launchpad = (props) => {
 			linkedin: details.additionalInfo?.linkedin
 				? details.additionalInfo.linkedin
 				: "",
-			description: details.description ? details.description : "",
+			description: details.additionalInfo.description
+				? details.additionalInfo.description
+				: "",
+			embeddedURL: details.additionalInfo.embeddedURL
+				? details.additionalInfo.embeddedURL
+				: "",
+			mainPictureURL: details.additionalInfo.mainPictureURL
+				? details.additionalInfo.mainPictureURL
+				: "",
+			projectTitle: details.additionalInfo.projectTitle
+				? details.additionalInfo.projectTitle
+				: "",
+			projectSubTitle: details.additionalInfo.projectSubTitle
+				? details.additionalInfo.projectSubTitle
+				: "",
 		},
 		validationSchema: Yup.object({
 			logoURL: Yup.string().test(
@@ -324,52 +539,471 @@ const Launchpad = (props) => {
 
 	const validationForThirdStep = useFormik(useFormikOptionsForThirdStep);
 
-	const handleChangeCurrency = (feeOption) => {
-		setCurrencyFeeOptions(feeOption);
-		validationForFirstStep.setFieldValue("feeOption", feeOption[0].fee);
+	const initialValuesForStage = {
+		stage: stageDetails[stageDetailIndex]?.stage
+			? stageDetails[stageDetailIndex].stage
+			: "",
+		isExchangeList: stageDetails[stageDetailIndex]?.isExchangeList
+			? stringToBoolean(stageDetails[stageDetailIndex].isExchangeList)
+			: false,
+		presaleRate: stageDetails[stageDetailIndex]?.presaleRate
+			? stageDetails[stageDetailIndex].presaleRate
+			: "",
+		refundType: stageDetails[stageDetailIndex]?.refundType
+			? stageDetails[stageDetailIndex].refundType
+			: "",
+		listingRate: stageDetails[stageDetailIndex]?.listingRate
+			? stageDetails[stageDetailIndex].listingRate
+			: "",
+		router: stageDetails[stageDetailIndex]?.router
+			? stageDetails[stageDetailIndex].router
+			: "",
+		liquidity: stageDetails[stageDetailIndex]?.liquidity
+			? stageDetails[stageDetailIndex].liquidity
+			: "",
+		softcap: stageDetails[stageDetailIndex]?.softcap
+			? stageDetails[stageDetailIndex].softcap
+			: "",
+		hardcap: stageDetails[stageDetailIndex]?.hardcap
+			? stageDetails[stageDetailIndex].hardcap
+			: "",
+		minimumBuy: stageDetails[stageDetailIndex]?.minimumBuy
+			? stageDetails[stageDetailIndex].minimumBuy
+			: "",
+		maximumBuy: stageDetails[stageDetailIndex]?.maximumBuy
+			? stageDetails[stageDetailIndex].maximumBuy
+			: "",
+		liquidityLockup: stageDetails[stageDetailIndex]?.liquidityLockup
+			? stageDetails[stageDetailIndex].liquidityLockup
+			: "",
+
+		vesting: stageDetails[stageDetailIndex]?.vesting
+			? stageDetails[stageDetailIndex].vesting
+			: "",
+		vestingTime: stageDetails[stageDetailIndex]?.vestingTime
+			? stageDetails[stageDetailIndex].vestingTime
+			: "",
+		totalDays: stageDetailIndex[stageDetailIndex]?.totalDays
+			? stageDetails[stageDetailIndex].totalDays
+			: "",
+		cliffing: stageDetails[stageDetailIndex]?.cliffing
+			? stageDetails[stageDetailIndex].cliffing
+			: "",
+		cliffingTime: stageDetails[stageDetailIndex]?.cliffingTime
+			? stageDetails[stageDetailIndex].cliffingTime
+			: "",
+		releaseDate: stageDetails[stageDetailIndex]?.releaseDate
+			? stageDetails[stageDetailIndex]?.releaseDate.replace("Z", "")
+			: "",
+		startDate: stageDetails[stageDetailIndex]?.startDate
+			? stageDetails[stageDetailIndex]?.startDate.replace("Z", "")
+			: "",
+		endDate: stageDetails[stageDetailIndex]?.endDate
+			? stageDetails[stageDetailIndex]?.endDate.replace("Z", "")
+			: "",
+		isVesting: stageDetails[stageDetailIndex]?.isVesting ? true : false,
 	};
 
-	const handleDateChange = (name, date) => {
-		validationForSecondStep.setFieldValue(name, date);
+	if (stageDetails[stageDetailIndex]?.currencyRateDetails) {
+		stageDetails[stageDetailIndex]?.currencyRateDetails.forEach(
+			(currencyRateDetail) => {
+				initialValuesForStage[currencyRateDetail.currency] =
+					currencyRateDetail.rate;
+			}
+		);
+	}
+
+	const useFormikOptionsForStage = {
+		enableReinitialize: true,
+		initialValues: initialValuesForStage,
+		validationSchema: Yup.object()
+			.shape({
+				stage: Yup.string().required(),
+				refundType: Yup.string().required(),
+				liquidity: Yup.number()
+					.required()
+					.when(["hardcap", "USDT"], (hardcap, USDT, schema) => {
+						return schema.min(
+							hardcap / USDT,
+							"liquidity >= Hardcap/Rate in USDT"
+						);
+					}),
+				startDate: Yup.date().required(),
+			})
+			.when((values, schema) => {
+				if (values.isExchangeList) {
+					return schema.shape({
+						listingRate: Yup.string().required(),
+						router: Yup.string().required(),
+					});
+				} else {
+					let validationData = {
+						// presaleRate: Yup.string().required(),
+						softcap: Yup.number()
+							.required()
+							.when(["hardcap"], (hardcap, schema) => {
+								const minSoftcap = parseFloat(hardcap) * 0.5;
+								return schema
+									.min(
+										minSoftcap,
+										"Softcap must be >=50% of Hardcap."
+									)
+									.max(
+										hardcap,
+										"Softcap should not exceed Hardcap."
+									);
+							}),
+						hardcap: Yup.number().required(),
+						minimumBuy: Yup.number()
+							.required()
+							.min(0.01, "MinimumBuy must be greater than of 0"),
+						maximumBuy: Yup.number()
+							.required()
+							.when(["minimumBuy"], (minimumBuy, schema) => {
+								return schema.min(
+									minimumBuy + 1,
+									"MaximumBuy must be greater than of MinimumBuy."
+								);
+							}),
+						// liquidityLockup: Yup.string().required(),
+						endDate: Yup.date()
+							.min(
+								Yup.ref("startDate")
+								// "End date must be grater than start date"
+							)
+							.required(),
+					};
+					if (validationForFirstStep.values?.currency) {
+						validationForFirstStep.values?.currency?.map(
+							(item) =>
+								(validationData[item.name] =
+									Yup.number().required(
+										`Rate in ${item.name} is required.`
+									))
+						);
+					}
+					if (values.isVesting) {
+						validationData["vesting"] = Yup.string().required();
+						validationData["cliffing"] = Yup.string().required();
+						validationData["totalDays"] = Yup.string().required();
+					} else {
+						validationData["releaseDate"] = Yup.date()
+							.min(Yup.ref("startDate"))
+							.required();
+					}
+					return schema.shape(validationData);
+				}
+			}),
+		onSubmit: (values) => {
+			let currencyRateDetails = [];
+			if (validationForFirstStep.values?.currency) {
+				validationForFirstStep.values?.currency.forEach((curr) => {
+					if (values?.[curr.name] !== undefined) {
+						currencyRateDetails.push({
+							currency: curr.name,
+							rate: values[curr.name],
+							isNative: curr.isNative,
+							address: curr.address,
+						});
+					}
+				});
+			}
+			let stageNumber = stageDetails.length;
+			if (stageDetails?.[stageDetailIndex]) {
+				stageNumber = stageDetailIndex;
+				stageDetails[stageDetailIndex] = {
+					...stageDetails[stageDetailIndex],
+					...values,
+					stageNumber: stageDetailIndex,
+					currencyRateDetails: currencyRateDetails,
+					isExchangeList: stringToBoolean(values.isExchangeList),
+					active: true,
+				};
+				handleStageFormData([...stageDetails]);
+				if (stageModalDetails.isDirectInsert === false)
+					toast.success("stage updated successfully.");
+			} else {
+				handleStageFormData([
+					...stageDetails,
+					{
+						...values,
+						stageNumber: stageNumber,
+						currencyRateDetails: currencyRateDetails,
+						active: true,
+					},
+				]);
+				if (stageModalDetails.isDirectInsert === false)
+					toast.success("stage add successfully.");
+			}
+			if (stageModalDetails.isDirectInsert === true) {
+				Swal.fire({
+					title: "Updating",
+					html: "Please wait...",
+					allowEscapeKey: false,
+					allowOutsideClick: false,
+					didOpen: () => {
+						Swal.showLoading();
+					},
+				});
+				const startDate = values.startDate.replace("Z", "");
+				const endDate = values.endDate.replace("Z", "");
+				let myDateStartDate = new Date(startDate + "Z");
+				let myDateEndDate = new Date(endDate + "Z");
+				let startDateFormat = myDateStartDate.toUTCString();
+				let endDateFormat = myDateEndDate.toUTCString();
+
+				let releaseDateFormat = values.releaseDate;
+				if (values.releaseDate) {
+					const releaseDate = values.releaseDate?.replace("Z", "");
+					let myDateReleaseDate = new Date(releaseDate + "Z");
+					releaseDateFormat = myDateReleaseDate.toUTCString();
+				}
+				dispatch(
+					updateStage({
+						...values,
+						startDate: startDateFormat,
+						endDate: endDateFormat,
+						releaseDate: releaseDateFormat,
+						stageNumber: stageNumber,
+						currencyRateDetails: currencyRateDetails,
+						active: true,
+						_id: details?._id,
+					})
+				);
+			}
+			toggleStageModal({
+				...stageModalDetails,
+				active: false,
+				isDirectInsert: false,
+			});
+		},
 	};
 
-	const handleAddEditModal = (data = null) => {
+	const validationForStage = useFormik(useFormikOptionsForStage);
+
+	const useFormikOptionsForTeamInfoStep = {
+		enableReinitialize: true,
+		initialValues: {
+			name: teamInfo[teamInfoIndex]?.name
+				? teamInfo[teamInfoIndex].name
+				: "",
+			designation: teamInfo[teamInfoIndex]?.designation
+				? teamInfo[teamInfoIndex].designation
+				: "",
+			url: teamInfo[teamInfoIndex]?.url
+				? teamInfo[teamInfoIndex].url
+				: "",
+			image: "",
+			linkedin: teamInfo[teamInfoIndex]?.linkedin
+				? teamInfo[teamInfoIndex].linkedin
+				: "",
+			active: teamInfo[teamInfoIndex]?.active
+				? teamInfo[teamInfoIndex].active
+				: "",
+		},
+		validationSchema: Yup.object({}),
+		onSubmit: (values) => {
+			if (teamInfo?.[teamInfoIndex]) {
+				teamInfo[teamInfoIndex] = {
+					...teamInfo[teamInfoIndex],
+					...values,
+					active: true,
+				};
+				handleTeamInfoFormData([...teamInfo]);
+				toast.success("Team updated successfully.");
+			} else {
+				handleTeamInfoFormData([
+					...teamInfo,
+					{
+						...values,
+						active: true,
+					},
+				]);
+				toast.success("Team add successfully.");
+			}
+			toggleTeamInfoModal({ ...teamInfoModalDetails, active: false });
+		},
+	};
+
+	const validationForTeamInfoStep = useFormik(
+		useFormikOptionsForTeamInfoStep
+	);
+
+	const useFormikOptionsForTokenomicStep = {
+		enableReinitialize: true,
+		initialValues: {
+			name: tokenomicDetails[tokenomicDetailsIndex]?.name
+				? tokenomicDetails[tokenomicDetailsIndex].name
+				: "",
+			value: tokenomicDetails[tokenomicDetailsIndex]?.value
+				? tokenomicDetails[tokenomicDetailsIndex].value
+				: "",
+			active: tokenomicDetails[tokenomicDetailsIndex]?.active
+				? tokenomicDetails[tokenomicDetailsIndex].active
+				: "",
+		},
+		validationSchema: Yup.object({}),
+		onSubmit: (values) => {
+			if (tokenomicDetails?.[tokenomicDetailsIndex]) {
+				tokenomicDetails[tokenomicDetailsIndex] = {
+					...tokenomicDetails[tokenomicDetailsIndex],
+					...values,
+					active: true,
+				};
+
+				handleTokenomicFormData([...tokenomicDetails]);
+				toast.success("Tokenomics updated successfully.");
+			} else {
+				handleTokenomicFormData([
+					...tokenomicDetails,
+					{
+						...values,
+						active: true,
+					},
+				]);
+				toast.success("Tokenomics add successfully.");
+			}
+
+			toggleTokenomicModal({ ...tokenomicModalDetails, active: false });
+		},
+	};
+
+	const validationForTokenomicStep = useFormik(
+		useFormikOptionsForTokenomicStep
+	);
+
+	const getCurrencyOption = useMemo(() => {
+		const result = networkDetails?.currencies?.map((item) => ({
+			label: `${item.name}`,
+			value: item.name,
+			isNative: item.isNative,
+			name: item.name,
+			address: item.address,
+		}));
+		return result ?? [];
+	}, [networkDetails]);
+
+	const getSelectedCurrencyOption = (currencies, selectedNetwork) => {
+		const networkDetails = networkInfo?.find(
+			(network) => network.name === selectedNetwork
+		);
+		const result = [];
+		networkDetails?.currencies?.forEach((item) => {
+			if (currencies.includes(item.name)) {
+				result.push({
+					label: `${item.name}`,
+					value: item.name,
+					isNative: item.isNative,
+					name: item.name,
+					address: item.address,
+				});
+			}
+		});
+		return result ?? [];
+	};
+
+	const handleAddEditModal = (data = null, isOnlyForStage = false) => {
 		setActiveTabFormStep(1);
 		validationForFirstStep.resetForm();
 		validationForSecondStep.resetForm();
 		validationForThirdStep.resetForm();
+
 		if (!isEmpty(data) && data?._id) {
-			handleformData(data);
+			if (data?.network) {
+				const networkDetails = networkInfo?.find(
+					(network) => network.name === data.network
+				);
+				setNetworkDetails({ ...networkDetails });
+			}
+			const currency = getSelectedCurrencyOption(
+				data.currency,
+				data.network
+			);
+			handleformData({ ...data, currency: currency });
+			handleStageFormData(data.stages);
+			handleTokenomicFormData(data.tokenomics ?? [{ active: false }]);
+			handleTeamInfoFormData(data.teamInfo ?? [{ active: false }]);
+			handleWhitePapersFormData(
+				data.whitepaper
+					? { ...data.whitepaper, uploadFile: null }
+					: { path: "", url: "", uploadFile: null, active: false }
+			);
 		} else {
+			dispatch(clearTokenResponse());
 			handleformData({
 				tokenAddress: "",
 				tokenName: "",
+				network: "",
 				tokenSymbol: "",
 				tokenDecimal: "",
-				currency: "",
+				tokenOwnerAddress: "",
+				currency: [],
 				feeOption: "",
 				listingOption: "",
-				presaleRate: "",
-				whiteList: "",
-				softcap: "",
-				hardcap: "",
-				minimumBuy: "",
-				maximumBuy: "",
-				refundType: "",
-				router: "",
-				liquidity: "",
-				listingRate: "",
-				liquidityLockup: "",
-				startDate: "",
-				endDate: "",
-				description: "",
 				additionalInfo: {},
 			});
+			setStageDetailIndex(0);
+
+			handleStageFormData([
+				{
+					stage: "",
+					isExchangeList: false,
+					presaleRate: "",
+					listingRate: "",
+					liquidity: "",
+					softcap: "",
+					hardcap: "",
+					minimumBuy: "",
+					maximumBuy: "",
+					refundType: "",
+					router: "",
+					liquidityLockup: "",
+					vesting: "",
+					vestingTime: "",
+					cliffing: "",
+					cliffingTime: "",
+					releaseDate: "",
+					startDate: "",
+					endDate: "",
+					currencyRateDetails: [],
+					active: false,
+				},
+			]);
 		}
-		toggleAddEditModal(!isOpenAddEditModal);
+		if (isOnlyForStage === false) toggleAddEditModal(!isOpenAddEditModal);
 	};
 
-	const handleFinalFormSubmit = () => {
+	const selectedFile = (selectedFiles) => {
+		if (isEmpty(selectedFiles)) {
+			return false;
+		} else {
+			let droppedFile = {};
+			selectedFiles.map((file) => {
+				droppedFile = file;
+				return true;
+			});
+			handleWhitePapersFormData({
+				...whitepaper,
+				uploadFile: droppedFile,
+			});
+		}
+	};
+
+	const selectedTeamFile = (selectedFiles, index) => {
+		if (isEmpty(selectedFiles)) {
+			validationForTeamInfoStep.setFieldValue("image", null);
+			return false;
+		} else {
+			let droppedFile = {};
+			selectedFiles.map((file) => {
+				droppedFile = file;
+				return true;
+			});
+			validationForTeamInfoStep.setFieldValue("image", droppedFile);
+		}
+	};
+
+	const handleFinalFormSubmit = async () => {
 		let feeOption = {};
 		if (validationForFirstStep.values.feeOption) {
 			feeOption = currencyFeeOptions.find(
@@ -378,88 +1012,539 @@ const Launchpad = (props) => {
 					parseInt(validationForFirstStep.values.feeOption)
 			);
 		}
+		if (isEmpty(feeOption)) {
+			feeOption = details.feeOption;
+		}
+		let whitePaperFile = null;
+		if (whitepaper.uploadFile) {
+			whitePaperFile = whitepaper.uploadFile;
+		}
+		let teamInfoImages = [];
+		let formatTeamInfo = teamInfo.map((team, index) => {
+			const { image, ...rest } = team;
+			teamInfoImages.push({ name: `teamInfoImages_${index}`, image });
+			return rest;
+		});
+
+		const formatCurrency = validationForFirstStep.values.currency.map(
+			(currency) => currency.name
+		);
+
+		const formatStageDetails = stageDetails.map((stage) => {
+			const startDate = stage.startDate.replace("Z", "");
+			const endDate = stage.endDate.replace("Z", "");
+			let myDateStartDate = new Date(startDate + "Z");
+			let myDateEndDate = new Date(endDate + "Z");
+			let startDateFormat = myDateStartDate.toUTCString();
+			let endDateFormat = myDateEndDate.toUTCString();
+			let releaseDateFormat = stage.releaseDate;
+
+			if (stage.releaseDate) {
+				const releaseDate = stage.releaseDate?.replace("Z", "");
+				let myDateReleaseDate = new Date(releaseDate + "Z");
+				releaseDateFormat = myDateReleaseDate.toUTCString();
+			}
+			return {
+				...stage,
+				startDate: startDateFormat,
+				endDate: endDateFormat,
+				releaseDate: releaseDateFormat,
+			};
+		});
+
 		const formatData = {
 			...details,
 			...validationForFirstStep.values,
+			currency: formatCurrency,
 			feeOption: feeOption,
 			...validationForSecondStep.values,
 			additionalInfo: validationForThirdStep.values,
+			stages: formatStageDetails,
+			tokenomics: tokenomicDetails,
+			teamInfo: formatTeamInfo,
+			whitePaperFile: whitePaperFile,
+			teamInfoImages: teamInfoImages,
 		};
 		if (details._id) {
 			dispatch(update(formatData));
 		} else {
 			dispatch(create(formatData));
 		}
+		Swal.fire({
+			title: "Updating",
+			html: "Please wait...",
+			allowEscapeKey: false,
+			allowOutsideClick: false,
+			didOpen: () => {
+				Swal.showLoading();
+			},
+		});
+	};
+
+	const getMinDateForStage = useCallback(
+		(currentIndex) => {
+			let minDate = moment().toDate();
+			if (currentIndex === 0) {
+				minDate = moment().subtract(5, "days").toDate();
+			} else {
+				const preIndex = currentIndex - 1;
+				if (stageDetails?.[preIndex]?.endDate) {
+					if (
+						moment(stageDetails[preIndex].endDate, true).isValid()
+					) {
+						minDate = moment(stageDetails[preIndex].endDate)
+							.add(1, "days")
+							.toDate();
+					}
+				}
+			}
+			return minDate;
+		},
+		[stageModalDetails]
+	);
+
+	const getCurrencyName = useMemo(() => {
+		const currency = validationForFirstStep.values.currency?.map(
+			(curr) => curr.name
+		);
+		return currency ?? [];
+	}, [validationForFirstStep.values?.currency]);
+
+	const handleAddNewStage = (isDirectInsert = false) => {
+		if (stageDetails[0].active === true) {
+			setStageDetailIndex(stageDetails.length);
+		}
+		toggleStageModal({
+			action: "add",
+			active: true,
+			isDirectInsert: isDirectInsert,
+		});
+		validationForStage.resetForm();
+	};
+
+	const handleEditStage = (stageDetailIndex, isDirectInsert = false) => {
+		setStageDetailIndex(stageDetailIndex);
+		toggleStageModal({
+			action: "edit",
+			active: true,
+			isDirectInsert: isDirectInsert,
+		});
+	};
+
+	const handleAddNewTeamInfo = () => {
+		if (teamInfo[0].active === true) {
+			setTeamInfoIndex(teamInfo.length);
+		} else {
+			if (teamInfo.length === 1) setTeamInfoIndex(0);
+		}
+		toggleTeamInfoModal({ action: "add", active: true });
+		validationForTeamInfoStep.resetForm();
+	};
+
+	const handleEditTeamInfo = (index) => {
+		setTeamInfoIndex(index);
+		toggleTeamInfoModal({ action: "edit", active: true });
+	};
+
+	const handleDeleteTeamInfo = (index) => {
+		Swal.fire({
+			title: "Are you sure?",
+			text: "Do you really want to delete?",
+			icon: "warning",
+			showCancelButton: true,
+			confirmButtonColor: "#3085d6",
+			cancelButtonColor: "#d33",
+			confirmButtonText: "Confirm",
+		}).then((result) => {
+			if (result.value) {
+				if (index === 0) {
+					teamInfo[index].active = false;
+				} else {
+					teamInfo.splice(index, 1);
+				}
+				handleTeamInfoFormData([...teamInfo]);
+			}
+		});
+	};
+
+	const handleAddNewTokenomic = () => {
+		if (tokenomicDetails[0].active === true) {
+			setTokenomicDetailsIndex(tokenomicDetails.length);
+		} else {
+			if (tokenomicDetails.length === 1) setTokenomicDetailsIndex(0);
+		}
+		toggleTokenomicModal({ action: "add", active: true });
+		validationForTokenomicStep.resetForm();
+	};
+
+	const handleEditTokenomic = (index) => {
+		setTokenomicDetailsIndex(index);
+		toggleTokenomicModal({ action: "edit", active: true });
+	};
+
+	const handleDeleteTokenomic = (index) => {
+		Swal.fire({
+			title: "Are you sure?",
+			text: "Do you really want to delete?",
+			icon: "warning",
+			showCancelButton: true,
+			confirmButtonColor: "#3085d6",
+			cancelButtonColor: "#d33",
+			confirmButtonText: "Confirm",
+		}).then((result) => {
+			if (result.value) {
+				if (index === 0) {
+					tokenomicDetails[index].active = false;
+					tokenomicDetails[index].name = "";
+					tokenomicDetails[index].value = "";
+				} else {
+					tokenomicDetails.splice(index, 1);
+				}
+				handleTokenomicFormData([...tokenomicDetails]);
+			}
+		});
+	};
+
+	const getAddressTokenDetails = () => {
+		const { tokenAddress, network } = validationForFirstStep.values;
+		if (tokenAddress && network) {
+			dispatch(getTokenDetails({ tokenAddress, network }));
+		}
+	};
+
+	const handleDeleteStage = (stageDetailIndex) => {
+		Swal.fire({
+			title: "Are you sure?",
+			text: "Do you really want to delete?",
+			icon: "warning",
+			showCancelButton: true,
+			confirmButtonColor: "#3085d6",
+			cancelButtonColor: "#d33",
+			confirmButtonText: "Confirm",
+		}).then((result) => {
+			if (result.value) {
+				if (stageDetailIndex === 0) {
+					stageDetails[stageDetailIndex].active = false;
+				} else {
+					stageDetails.splice(stageDetailIndex, 1);
+					for (
+						let stageIndex = stageDetailIndex;
+						stageIndex < stageDetails.length;
+						stageIndex++
+					) {
+						stageDetails[stageIndex]["stageNumber"] = stageIndex;
+					}
+				}
+				handleStageFormData([...stageDetails]);
+			}
+		});
+	};
+
+	const handleDeployLunchpad = (data) => {
+		if (data?._id) {
+			dispatch(getLauchpadStages({ _id: data._id }));
+			dispatch(getLaunchpadDeployHistory({ _id: data._id }));
+		}
+		setDeployInfo({
+			isOpenModal: !deployInfo.isOpenModal,
+			launchpad: data,
+		});
+	};
+
+	const handleListingStageInfo = (data) => {
+		handleAddEditModal(data, true);
+		if (listingStageInfo.isOpenModal === true) refreshTableData.current();
+		setListingStageInfo({
+			isOpenModal: !listingStageInfo.isOpenModal,
+		});
+	};
+
+	const handleDeployAllStep = (data) => {
+		Swal.fire({
+			title: "Are you sure?",
+			text: "Do you really want to deploy?",
+			icon: "warning",
+			showCancelButton: true,
+			confirmButtonColor: "#3085d6",
+			cancelButtonColor: "#d33",
+			confirmButtonText: "Confirm",
+		}).then((result) => {
+			if (result.value) {
+				dispatch(deploy({ _id: data._id }));
+				// Swal.fire({
+				// 	title: "Deploying",
+				// 	html: "Please wait...",
+				// 	allowEscapeKey: false,
+				// 	allowOutsideClick: false,
+				// 	didOpen: () => {
+				// 		Swal.showLoading();
+				// 	},
+				// });
+			}
+		});
+	};
+
+	const handleDeployUpdatedStage = (data) => {
+		Swal.fire({
+			title: "Are you sure?",
+			text: "Do you really want to deploy?",
+			icon: "warning",
+			showCancelButton: true,
+			confirmButtonColor: "#3085d6",
+			cancelButtonColor: "#d33",
+			confirmButtonText: "Confirm",
+		}).then((result) => {
+			if (result.value) {
+				dispatch(deployUpdatedStage(data));
+				Swal.fire({
+					title: "Deploying",
+					html: "Please wait...",
+					allowEscapeKey: false,
+					allowOutsideClick: false,
+					didOpen: () => {
+						Swal.showLoading();
+					},
+				});
+			}
+		});
+	};
+
+	const handleToggleSwap = (data) => {
+		Swal.fire({
+			title: "Are you sure?",
+			text: "Do you really want to update?",
+			icon: "warning",
+			showCancelButton: true,
+			confirmButtonColor: "#3085d6",
+			cancelButtonColor: "#d33",
+			confirmButtonText: "Confirm",
+		}).then((result) => {
+			if (result.value) {
+				Swal.fire({
+					title: "Updating",
+					html: "Please wait...",
+					allowEscapeKey: false,
+					allowOutsideClick: false,
+					didOpen: () => {
+						Swal.showLoading();
+					},
+				});
+				dispatch(toggleSwap({ _id: data._id }));
+			}
+		});
+	};
+
+	const handleToggle = (data) => {
+		Swal.fire({
+			title: "Are you sure?",
+			text: "Do you really want to update?",
+			icon: "warning",
+			showCancelButton: true,
+			confirmButtonColor: "#3085d6",
+			cancelButtonColor: "#d33",
+			confirmButtonText: "Confirm",
+		}).then((result) => {
+			if (result.value) {
+				Swal.fire({
+					title: "Updating",
+					html: "Please wait...",
+					allowEscapeKey: false,
+					allowOutsideClick: false,
+					didOpen: () => {
+						Swal.showLoading();
+					},
+				});
+				dispatch(toggle(data._id));
+			}
+		});
+	};
+
+	const handleToggleStageSwap = (data) => {
+		Swal.fire({
+			title: "Are you sure?",
+			text: `Do you really want to ${
+				data.isSwapEnable === true ? "disable swap" : "enable swap"
+			}?`,
+			icon: "warning",
+			showCancelButton: true,
+			confirmButtonColor: "#3085d6",
+			cancelButtonColor: "#d33",
+			confirmButtonText: "Confirm",
+		}).then((result) => {
+			if (result.value) {
+				Swal.fire({
+					title: "Updating",
+					html: "Please wait...",
+					allowEscapeKey: false,
+					allowOutsideClick: false,
+					didOpen: () => {
+						Swal.showLoading();
+					},
+				});
+				dispatch(toggleStageSwap({ ...data, _id: details._id }));
+			}
+		});
 	};
 
 	const columns = () => [
 		{
-			label: "Currency",
-			name: "currency",
+			label: "Token Name",
+			name: "tokenName",
 			options: {
-				filter: true,
+				filter: false,
 				sort: false,
 			},
 		},
-
 		{
 			label: "Token Address",
 			name: "tokenAddress",
 			options: {
-				filter: true,
+				filter: false,
 				sort: false,
 			},
 		},
 
 		{
-			label: "Liquidity",
-			name: "liquidity",
+			label: "Currency",
+			name: "currency",
 			options: {
-				filter: true,
+				filter: false,
 				sort: false,
+				customBodyRender: (currency) => {
+					return currency?.toString(",  ");
+				},
 			},
 		},
 
 		{
-			label: "Liquidity Lockup(days)",
-			name: "liquidityLockup",
+			label: "No. of stages",
+			name: "stages",
 			options: {
-				filter: true,
+				filter: false,
 				sort: false,
+				customBodyRender: (stages) => {
+					return (
+						<div className="text-center">
+							{/* <div className="d-flex flex-wrap gap-2 font-size-16">
+								{stages &&
+									stages.map((stage) => (
+										<Link
+											to="#"
+											className="badge badge-soft-primary"
+										>
+											{`Stage ${stage.stageNumber + 1}`}
+										</Link>
+									))}
+							</div> */}
+							<div className="badge badge-soft-success font-size-14">
+								{stages.length}
+							</div>
+						</div>
+					);
+				},
 			},
 		},
 
-		// {
-		// 	name: "active",
-		// 	label: "Active",
-		// 	options: {
-		// 		filter: false,
-		// 		sort: false,
-		// 		download: false,
-		// 		customBodyRender: (rowData) => (
-		// 			<div className="square-switch">
-		// 				<Input
-		// 					type="checkbox"
-		// 					id={`square-switch-${rowData._id}-banner`}
-		// 					switch="none"
-		// 					checked={rowData.active}
-		// 					onClick={() => {
-		// 						toggleItem(rowData._id);
-		// 					}}
-		// 					onChange={() => {
-		// 						toggleItem(rowData._id);
-		// 					}}
-		// 				/>
-		// 				<Label
-		// 					htmlFor={`square-switch-${rowData._id}-banner`}
-		// 					data-on-label="Yes"
-		// 					data-off-label="No"
-		// 				></Label>
-		// 			</div>
-		// 		),
-		// 	},
-		// },
+		{
+			name: "status",
+			label: "Status",
+			options: {
+				filter: false,
+				sort: false,
+				download: false,
+				customBodyRender: (status) => {
+					return status === "draft" ? (
+						<div className="badge badge-soft-primary font-size-12">
+							Draft
+						</div>
+					) : status === "pending" ? (
+						<div className="badge badge-soft-warning font-size-12">
+							Pending
+						</div>
+					) : status === "live" ? (
+						<div className="badge badge-soft-success font-size-12">
+							Live
+						</div>
+					) : (
+						<div className="badge badge-soft-danger font-size-12">
+							Finished
+						</div>
+					);
+				},
+			},
+		},
 
+		{
+			label: "Swap Enable",
+			name: "isSwapEnable",
+			options: {
+				filter: false,
+				sort: false,
+				customBodyRender: (isSwapEnable) => {
+					return isSwapEnable?.launchPadDetails?.address &&
+						isSwapEnable.status !== "finished" ? (
+						<div className="square-switch">
+							<Input
+								type="checkbox"
+								id={`swap-launchpad-${isSwapEnable._id}`}
+								switch="none"
+								checked={isSwapEnable.isSwapEnable}
+								onClick={() => {
+									handleToggleSwap({
+										_id: isSwapEnable._id,
+									});
+								}}
+								onChange={() => {
+									handleToggleSwap({
+										_id: isSwapEnable._id,
+									});
+								}}
+							/>
+							<Label
+								htmlFor={`swap-launchpad-${isSwapEnable._id}`}
+								data-on-label="Yes"
+								data-off-label="No"
+							></Label>
+						</div>
+					) : (
+						<div className="text-center">-</div>
+					);
+				},
+			},
+		},
+		{
+			label: "Active",
+			name: "active",
+			options: {
+				filter: false,
+				sort: false,
+				customBodyRender: (active) => {
+					return (
+						<div className="d-flex flex-wrap gap-2 text-center">
+							<div className="square-switch">
+								<Input
+									type="checkbox"
+									id={`active-launchpad-${active._id}`}
+									switch="none"
+									checked={active.active}
+									onClick={() => {
+										handleToggle(active);
+									}}
+									onChange={() => {
+										handleToggle(active);
+									}}
+								/>
+								<Label
+									htmlFor={`active-launchpad-${active._id}`}
+									data-on-label="Yes"
+									data-off-label="No"
+								></Label>
+							</div>
+						</div>
+					);
+				},
+			},
+		},
 		{
 			label: "Actions",
 			name: "action",
@@ -478,31 +1563,94 @@ const Launchpad = (props) => {
 				),
 				customBodyRender: (data) => {
 					return (
-						<div className="text-center">
-							<HasAnyPermission
-								permission={[
-									"launchpad update",
-									"launchpad view",
-								]}
-							>
-								<button
-									onClick={(e) => handleAddEditModal(data)}
-									type="button"
-									className="btn btn-soft-primary waves-effect waves-light"
+						<div className="d-flex flex-wrap gap-2 text-center">
+							{data.status !== "finished" && (
+								<HasAnyPermission
+									permission={[
+										"launchpad update",
+										"launchpad view",
+									]}
 								>
-									<i className="bx bx-edit-alt font-size-16 align-middle"></i>
-								</button>
-							</HasAnyPermission>
-							&nbsp;
-							<HasAnyPermission permission={["launchpad delete"]}>
-								<button
-									onClick={(e) => removeItem(data._id)}
-									type="button"
-									className="btn btn-soft-danger waves-effect waves-light"
+									<button
+										type="button"
+										onClick={(e) => {
+											e.preventDefault();
+											handleListingStageInfo(data);
+										}}
+										className=" btn btn-sm btn-primary waves-effect waves-light"
+									>
+										<i className="bx bx bx-info-circle font-size-16 align-middle me-2"></i>{" "}
+										Manage Stages
+									</button>
+								</HasAnyPermission>
+							)}
+
+							{data.status !== "finished" && (
+								<HasAnyPermission
+									permission={[
+										"launchpad update",
+										"launchpad view",
+									]}
 								>
-									<i className="bx bx-trash font-size-16 align-middle"></i>
-								</button>
-							</HasAnyPermission>
+									<button
+										type="button"
+										onClick={(e) => {
+											e.preventDefault();
+											handleDeployLunchpad(data, true);
+										}}
+										className=" btn btn-sm btn-success waves-effect waves-light"
+									>
+										<i className="bx bx-rocket font-size-16 align-middle me-2"></i>{" "}
+										Deploy
+									</button>
+								</HasAnyPermission>
+							)}
+							{data.status !== "finished" && (
+								<HasAnyPermission
+									permission={[
+										"launchpad update",
+										"launchpad view",
+									]}
+								>
+									<button
+										type="button"
+										onClick={(e) =>
+											handleAddEditModal(data)
+										}
+										className=" btn btn-sm btn-primary waves-effect waves-light"
+									>
+										<i className="bx bx-edit-alt font-size-16 align-middle me-2"></i>{" "}
+										Edit
+									</button>
+								</HasAnyPermission>
+							)}
+							{data.status === "draft" && (
+								<HasAnyPermission
+									permission={["launchpad delete"]}
+								>
+									<button
+										type="button"
+										onClick={(e) => removeItem(data._id)}
+										className=" btn btn-sm btn-danger waves-effect waves-light"
+									>
+										<i className="bx bx-trash font-size-16 align-middle me-2"></i>{" "}
+										Delete
+									</button>
+								</HasAnyPermission>
+							)}
+							{data.status === "finished" && (
+								<HasAnyPermission
+									permission={["launchpad delete"]}
+								>
+									<button
+										type="button"
+										className=" btn btn-sm btn-danger waves-effect waves-light"
+										disabled
+									>
+										Finished
+									</button>
+								</HasAnyPermission>
+							)}
 						</div>
 					);
 				},
@@ -515,6 +1663,7 @@ const Launchpad = (props) => {
 			return {
 				...item,
 				active: item,
+				isSwapEnable: item,
 				action: item,
 			};
 		});
@@ -534,18 +1683,68 @@ const Launchpad = (props) => {
 		else if (isAddPermission && isEmpty(details._id)) return true;
 		else return false;
 	};
-
 	return (
 		<React.Fragment>
 			<div className="page-content">
 				<Helmet>
-					<title>Launchpad | LFinance</title>
+					<title>Launchpad | LFi</title>
 				</Helmet>
 				<Container fluid>
 					{/* Render Breadcrumbs */}
 					<Breadcrumbs
 						title="Launchpad Option"
 						breadcrumbItem="List"
+					/>
+
+					{deployInfo.isOpenModal === true && (
+						<DeployInfoModal
+							handleDeployLunchpad={handleDeployLunchpad}
+							// lauchpadDeployHistory={lauchpadDeployHistory}
+							updatedLaunchpadStages={updatedLaunchpadStages}
+							deployInfo={deployInfo}
+							deployDetails={deployDetails}
+							setDeployDetails={setDeployDetails}
+							handleDeployAllStep={handleDeployAllStep}
+							handleDeployUpdatedStage={handleDeployUpdatedStage}
+							isDeploying={isDeploying}
+						/>
+					)}
+
+					{listingStageInfo.isOpenModal === true && (
+						<ListingStageInfo
+							handleListingStageInfo={handleListingStageInfo}
+							listingStageInfo={listingStageInfo}
+							stageDetails={stageDetails}
+							handleAddNewStage={handleAddNewStage}
+							handleEditStage={handleEditStage}
+							// handleDeleteStage={handleDeleteStage}
+							handleToggleStageSwap={handleToggleStageSwap}
+						/>
+					)}
+
+					<StageModal
+						stageModalDetails={stageModalDetails}
+						toggleStageModal={toggleStageModal}
+						validationForStage={validationForStage}
+						validationForFirstStep={validationForFirstStep}
+						couldHaveAddUpdatePermission={
+							couldHaveAddUpdatePermission
+						}
+						launchpadOptions={launchpadOptions}
+					/>
+					<TeamInfoModal
+						teamInfoModalDetails={teamInfoModalDetails}
+						toggleTeamInfoModal={toggleTeamInfoModal}
+						validationForTeamInfoStep={validationForTeamInfoStep}
+						selectedTeamFile={selectedTeamFile}
+					/>
+					<TokenomicModal
+						tokenomicModalDetails={tokenomicModalDetails}
+						toggleTokenomicModal={toggleTokenomicModal}
+						validationForTokenomicStep={validationForTokenomicStep}
+						couldHaveAddUpdatePermission={
+							couldHaveAddUpdatePermission
+						}
 					/>
 					<Row>
 						<Col lg="12">
@@ -569,12 +1768,15 @@ const Launchpad = (props) => {
 															setRefresh={
 																refreshTableData
 															}
-															disableFilterIcon={
-																true
+															getLoaderStatus={
+																getLoaderStatus
 															}
-															disableSearchIcon={
-																true
-															}
+															// disableFilterIcon={
+															// 	true
+															// }
+															// disableSearchIcon={
+															// 	true
+															// }
 															origin={
 																<div className="row">
 																	<div className="col-auto h4">
@@ -669,11 +1871,6 @@ const Launchpad = (props) => {
 																							2,
 																					}
 																				)}
-																				// onClick={() => {
-																				// 	setActiveTabFormStep(
-																				// 		2
-																				// 	);
-																				// }}
 																			>
 																				<div
 																					className="step-icon"
@@ -706,7 +1903,7 @@ const Launchpad = (props) => {
 																					className="step-icon"
 																					data-bs-toggle="tooltip"
 																					data-bs-placement="top"
-																					title="Add Additional Info"
+																					title="Team Info"
 																				>
 																					3
 																				</div>
@@ -738,6 +1935,32 @@ const Launchpad = (props) => {
 																				</div>
 																			</NavLink>
 																		</NavItem>
+																		<NavItem>
+																			<NavLink
+																				href="#"
+																				className={classnames(
+																					{
+																						active:
+																							activeTabFormStep ===
+																							5,
+																					}
+																				)}
+																				// onClick={() => {
+																				// 	setActiveTabFormStep(
+																				// 		4
+																				// 	);
+																				// }}
+																			>
+																				<div
+																					className="step-icon"
+																					data-bs-toggle="tooltip"
+																					data-bs-placement="top"
+																					title="Add Additional Info"
+																				>
+																					5
+																				</div>
+																			</NavLink>
+																		</NavItem>
 																	</ul>
 
 																	<TabContent
@@ -751,1418 +1974,65 @@ const Launchpad = (props) => {
 																				1
 																			}
 																		>
-																			<Form
-																				// form={true}
-																				// onSubmit={
-																				// 	validationForFirstStep.handleSubmit
-																				// }
-																				onSubmit={(
-																					e
-																				) => {
-																					e.preventDefault();
-																					validationForFirstStep.handleSubmit();
-																					return false;
-																				}}
-																			>
-																				<div className="text-center mb-4">
-																					<h5>
-																						Verify
-																						Token
-																					</h5>
-																					<p className="card-title-desc">
-																						Enter
-																						the
-																						token
-																						address
-																						and
-																						verify
-																					</p>
-																				</div>
-																				<div className="row">
-																					{/* <div className="col-lg-2"></div> */}
-																					<div className="col-lg-12">
-																						<div className="mb-3">
-																							<label
-																								htmlFor="basicpill-firstname-input"
-																								className="form-label"
-																							>
-																								Token
-																								Address
-																							</label>
-																							<Input
-																								name="tokenAddress"
-																								type="text"
-																								onChange={
-																									validationForFirstStep.handleChange
-																								}
-																								onBlur={
-																									validationForFirstStep.handleBlur
-																								}
-																								value={
-																									validationForFirstStep
-																										.values
-																										.tokenAddress ||
-																									""
-																								}
-																								invalid={
-																									validationForFirstStep
-																										.touched
-																										.tokenAddress &&
-																									validationForFirstStep
-																										.errors
-																										.tokenAddress
-																										? true
-																										: false
-																								}
-																							/>
-																							{validationForFirstStep
-																								.touched
-																								.tokenAddress &&
-																							validationForFirstStep
-																								.errors
-																								.tokenAddress ? (
-																								<FormFeedback type="invalid">
-																									{
-																										validationForFirstStep
-																											.errors
-																											.tokenAddress
-																									}
-																								</FormFeedback>
-																							) : null}
-																						</div>
-
-																						{/* <div className="mb-3">
-																							<label
-																								htmlFor="basicpill-vatno-input"
-																								className="form-label"
-																							>
-																								Currency
-																							</label>
-																							<select
-																								className="form-control"
-																								name="currency"
-																								onChange={(
-																									e
-																								) => {
-																									validationForFirstStep.handleChange(
-																										e
-																									);
-																									handleChangeCurrency(
-																										currency.feeOption
-																									);
-																								}}
-																								onBlur={
-																									validationForFirstStep.handleBlur
-																								}
-																								value={
-																									validationForFirstStep
-																										.values
-																										.currency ||
-																									""
-																								}
-																							>
-																								{launchpadOptions?.currency &&
-																									launchpadOptions?.currency.data.map(
-																										(
-																											currency,
-																											index
-																										) => (
-																											<option
-																												value={
-																													currency.name
-																												}
-																											>
-																												{
-																													currency.name
-																												}
-																											</option>
-																										)
-																									)}
-																							</select>
-																						</div> */}
-
-																						<div className="mb-3">
-																							<label
-																								htmlFor="basicpill-vatno-input"
-																								className="form-label"
-																							>
-																								Currency
-																							</label>
-																							<Input
-																								name="currency"
-																								type="select"
-																								onChange={(
-																									e
-																								) => {
-																									const data =
-																										launchpadOptions?.currency.data.find(
-																											(
-																												currency
-																											) =>
-																												currency.name ===
-																												e
-																													.target
-																													.value
-																										);
-																									handleChangeCurrency(
-																										data.feeOption
-																									);
-																									validationForFirstStep.handleChange(
-																										e
-																									);
-																								}}
-																								onBlur={
-																									validationForFirstStep.handleBlur
-																								}
-																								value={
-																									validationForFirstStep
-																										.values
-																										.currency ||
-																									""
-																								}
-																								invalid={
-																									validationForFirstStep
-																										.touched
-																										.currency &&
-																									validationForFirstStep
-																										.errors
-																										.currency
-																										? true
-																										: false
-																								}
-																							>
-																								<option
-																									value=""
-																									disabled
-																								>
-																									Select
-																									Currency
-																								</option>
-																								{launchpadOptions?.currency &&
-																									launchpadOptions?.currency.data.map(
-																										(
-																											currency,
-																											index
-																										) => (
-																											<option
-																												key={`${index}currency`}
-																												value={
-																													currency.name
-																												}
-																											>
-																												{
-																													currency.name
-																												}
-																											</option>
-																										)
-																									)}
-																							</Input>
-																							{validationForFirstStep
-																								.touched
-																								.feeOption &&
-																							validationForFirstStep
-																								.errors
-																								.feeOption ? (
-																								<FormFeedback type="invalid">
-																									{
-																										validationForFirstStep
-																											.errors
-																											.feeOption
-																									}
-																								</FormFeedback>
-																							) : null}
-																						</div>
-
-																						{/* <div className="mb-3">
-																							<h5 className="font-size-14 mb-3">
-																								Currency
-																							</h5>
-
-																							{launchpadOptions?.currency &&
-																								launchpadOptions?.currency.data.map(
-																									(
-																										currency,
-																										index
-																									) => (
-																										<div
-																											key={
-																												index
-																											}
-																											className="form-check mb-3"
-																										>
-																											<Input
-																												name="currency"
-																												type="radio"
-																												id={`${currency.name}${index}`}
-																												// onChange={
-																												// 	validationForFirstStep.handleChange
-																												// }
-																												onClick={(
-																													e
-																												) => {
-																													validationForFirstStep.handleChange(
-																														e
-																													);
-																													handleChangeCurrency(
-																														currency.feeOption
-																													);
-																												}}
-																												onChange={(
-																													e
-																												) => {
-																													validationForFirstStep.handleChange(
-																														e
-																													);
-																													handleChangeCurrency(
-																														currency.feeOption
-																													);
-																												}}
-																												onBlur={
-																													validationForFirstStep.handleBlur
-																												}
-																												// checked={
-																												// 	validationForFirstStep
-																												// 		.values
-																												// 		.currency ===
-																												// 	currency.name
-																												// 		? true
-																												// 		: false
-																												// }
-																												defaultChecked={
-																													validationForFirstStep
-																														.values
-																														.currency ===
-																													currency.name
-																														? true
-																														: false
-																												}
-																												value={
-																													currency.name
-																												}
-																											/>
-																											<label
-																												className="form-check-label"
-																												htmlFor={`${currency.name}${index}`}
-																											>
-																												{
-																													currency.name
-																												}
-																											</label>
-																										</div>
-																									)
-																								)}
-																							{validationForFirstStep
-																								.touched
-																								.currency &&
-																							validationForFirstStep
-																								.errors
-																								.currency ? (
-																								<FormFeedback type="invalid">
-																									{
-																										validationForFirstStep
-																											.errors
-																											.currency
-																									}
-																								</FormFeedback>
-																							) : null}
-																						</div> */}
-
-																						<div className="mb-3">
-																							<label
-																								htmlFor="basicpill-vatno-input"
-																								className="form-label"
-																							>
-																								Fee
-																								Options
-																							</label>
-																							<Input
-																								name="feeOption"
-																								type="select"
-																								onChange={(
-																									e
-																								) => {
-																									validationForFirstStep.handleChange(
-																										e
-																									);
-																								}}
-																								onBlur={
-																									validationForFirstStep.handleBlur
-																								}
-																								value={
-																									validationForFirstStep
-																										.values
-																										.feeOption ||
-																									""
-																								}
-																								invalid={
-																									validationForFirstStep
-																										.touched
-																										.feeOption &&
-																									validationForFirstStep
-																										.errors
-																										.feeOption
-																										? true
-																										: false
-																								}
-																							>
-																								<option
-																									value=""
-																									disabled
-																								>
-																									Select
-																									Fee
-																									option
-																								</option>
-																								{currencyFeeOptions &&
-																									currencyFeeOptions.map(
-																										(
-																											fee,
-																											index
-																										) => (
-																											<option
-																												key={`${index}fee`}
-																												value={
-																													fee.fee
-																												}
-																											>
-																												{
-																													fee.description
-																												}
-																											</option>
-																										)
-																									)}
-																							</Input>
-																							{validationForFirstStep
-																								.touched
-																								.feeOption &&
-																							validationForFirstStep
-																								.errors
-																								.feeOption ? (
-																								<FormFeedback type="invalid">
-																									{
-																										validationForFirstStep
-																											.errors
-																											.feeOption
-																									}
-																								</FormFeedback>
-																							) : null}
-																						</div>
-
-																						{/* <div className="mb-4">
-																							<h5 className="font-size-14 mb-3">
-																								Fee
-																								Options
-																							</h5>
-
-																							{currencyFeeOptions &&
-																								currencyFeeOptions.map(
-																									(
-																										fee,
-																										index
-																									) => (
-																										<div
-																											key={
-																												index
-																											}
-																											className="form-check mb-3"
-																										>
-																											<Input
-																												name="feeOption"
-																												type="radio"
-																												// id={`${fee.fee}${index}fee`}
-																												// onChange={
-																												// 	validationForFirstStep.handleChange
-																												// }
-																												onClick={(
-																													e
-																												) => {
-																													e.target.value =
-																														validationForFirstStep.values.feeOption;
-																													validationForFirstStep.handleChange(
-																														e
-																													);
-																												}}
-																												onChange={(
-																													e
-																												) => {
-																													e.target.value =
-																														validationForFirstStep.values.feeOption;
-																													// validationForFirstStep.handleChange(
-																													// 	e
-																													// );
-																												}}
-																												onBlur={
-																													validationForFirstStep.handleBlur
-																												}
-																												// defaultChecked={
-																												// 	validationForFirstStep
-																												// 		.values
-																												// 		.feeOption
-																												// 		.fee !==
-																												// 	undefined
-																												// 		? validationForFirstStep
-																												// 				.values
-																												// 				.feeOption
-																												// 				.fee ===
-																												// 		  fee.fee
-																												// 		: false
-																												// }
-																												checked={
-																													validationForFirstStep
-																														.values
-																														.feeOption
-																														.fee !==
-																													undefined
-																														? validationForFirstStep
-																																.values
-																																.feeOption
-																																.fee ===
-																														  fee.fee
-																															? true
-																															: false
-																														: index ===
-																														  0
-																														? true
-																														: false
-																												}
-																												value={
-																													validationForFirstStep
-																														.values
-																														.feeOption
-																												}
-																											/>
-																											<label
-																												className="form-check-label"
-																												// htmlFor={`${fee.fee}${index}fee`}
-																											>
-																												{
-																													fee.description
-																												}
-																											</label>
-																										</div>
-																									)
-																								)}
-																							{validationForFirstStep
-																								.touched
-																								.feeOption &&
-																							validationForFirstStep
-																								.errors
-																								.feeOption ? (
-																								<FormFeedback type="invalid">
-																									{
-																										validationForFirstStep
-																											.errors
-																											.feeOption
-																									}
-																								</FormFeedback>
-																							) : null}
-																						</div> */}
-																					</div>
-																				</div>
-																				<div className="row">
-																					<div className="col-lg-12">
-																						<div className="mb-3">
-																							<label
-																								htmlFor="basicpill-vatno-input"
-																								className="form-label"
-																							>
-																								Listing
-																								Options
-																							</label>
-																							<Input
-																								name="listingOption"
-																								type="select"
-																								onChange={
-																									validationForFirstStep.handleChange
-																								}
-																								onBlur={
-																									validationForFirstStep.handleBlur
-																								}
-																								value={
-																									validationForFirstStep
-																										.values
-																										.listingOption ||
-																									""
-																								}
-																								invalid={
-																									validationForFirstStep
-																										.touched
-																										.listingOption &&
-																									validationForFirstStep
-																										.errors
-																										.listingOption
-																										? true
-																										: false
-																								}
-																							>
-																								<option
-																									value=""
-																									disabled
-																								>
-																									Select
-																									option
-																								</option>
-																								<option
-																									value={
-																										"automatic"
-																									}
-																								>
-																									Auto
-																									Listing
-																								</option>
-																								<option
-																									value={
-																										"manual"
-																									}
-																								>
-																									Manual
-																									Listing
-																								</option>
-																							</Input>
-																							{validationForFirstStep
-																								.touched
-																								.listingOption &&
-																							validationForFirstStep
-																								.errors
-																								.listingOption ? (
-																								<FormFeedback type="invalid">
-																									{
-																										validationForFirstStep
-																											.errors
-																											.listingOption
-																									}
-																								</FormFeedback>
-																							) : null}
-																						</div>
-																					</div>
-																				</div>
-																			</Form>
+																			<VerifyTokenStepOne
+																				networkInfo={
+																					networkInfo
+																				}
+																				validationForFirstStep={
+																					validationForFirstStep
+																				}
+																				getAddressTokenDetails={
+																					getAddressTokenDetails
+																				}
+																				clearTokenResponse={
+																					clearTokenResponse
+																				}
+																				handleChangeNetwork={
+																					handleChangeNetwork
+																				}
+																				launchpad={
+																					launchpad
+																				}
+																				details={
+																					details
+																				}
+																				handleChangeCurrency={
+																					handleChangeCurrency
+																				}
+																				getCurrencyOption={
+																					getCurrencyOption
+																				}
+																				getCurrencyName={
+																					getCurrencyName
+																				}
+																			/>
 																		</TabPane>
+
 																		<TabPane
 																			tabId={
 																				2
 																			}
 																		>
-																			<Form
-																				// form={true}
-																				// onSubmit={
-																				// 	validationForSecondStep.handleSubmit
-																				// }
-																				onSubmit={(
-																					e
-																				) => {
-																					e.preventDefault();
-																					validationForSecondStep.handleSubmit();
-																					return false;
-																				}}
-																			>
-																				<div>
-																					<div className="text-center mb-4">
-																						<h5>
-																							DeFi
-																							Launchpad
-																							Info
-																						</h5>
-																						<p className="card-title-desc">
-																							Enter
-																							the
-																							launchpad
-																							information
-																							that
-																							you
-																							want
-																							to
-																							raise
-																							,
-																							that
-																							should
-																							be
-																							enter
-																							all
-																							details
-																							about
-																							your
-																							presale
-																						</p>
-																					</div>
-																					<div className="row">
-																						<div className="col-lg-12">
-																							<div className="mb-3">
-																								<label
-																									htmlFor="basicpill-firstname-input"
-																									className="form-label"
-																								>
-																									Presale
-																									rate
-																								</label>
-																								<Input
-																									name="presaleRate"
-																									type="text"
-																									onChange={
-																										validationForSecondStep.handleChange
-																									}
-																									onBlur={
-																										validationForSecondStep.handleBlur
-																									}
-																									value={
-																										validationForSecondStep
-																											.values
-																											.presaleRate ||
-																										""
-																									}
-																									invalid={
-																										validationForSecondStep
-																											.touched
-																											.presaleRate &&
-																										validationForSecondStep
-																											.errors
-																											.presaleRate
-																											? true
-																											: false
-																									}
-																								/>
-																								{validationForSecondStep
-																									.touched
-																									.presaleRate &&
-																								validationForSecondStep
-																									.errors
-																									.presaleRate ? (
-																									<FormFeedback type="invalid">
-																										{
-																											validationForSecondStep
-																												.errors
-																												.presaleRate
-																										}
-																									</FormFeedback>
-																								) : null}
-																							</div>
-																						</div>
-
-																						<div className="col-lg-12">
-																							<div className="mb-3">
-																								<label
-																									htmlFor="basicpill-vatno-input"
-																									className="form-label"
-																								>
-																									Whitelist
-																								</label>
-																								<select
-																									className="form-control"
-																									name="whiteList"
-																									onChange={
-																										validationForSecondStep.handleChange
-																									}
-																									onBlur={
-																										validationForSecondStep.handleBlur
-																									}
-																									value={
-																										validationForSecondStep
-																											.values
-																											.whiteList ||
-																										""
-																									}
-																								>
-																									<option value="Enable">
-																										Enable
-																									</option>
-																									<option value="Disable">
-																										Disable
-																									</option>
-																								</select>
-																							</div>
-																						</div>
-																					</div>
-
-																					<div className="row">
-																						<div className="col-lg-6">
-																							<div className="mb-3">
-																								<label
-																									htmlFor="basicpill-firstname-input"
-																									className="form-label"
-																								>
-																									Softcap
-																								</label>
-																								<Input
-																									name="softcap"
-																									type="text"
-																									onChange={
-																										validationForSecondStep.handleChange
-																									}
-																									onBlur={
-																										validationForSecondStep.handleBlur
-																									}
-																									value={
-																										validationForSecondStep
-																											.values
-																											.softcap ||
-																										""
-																									}
-																									invalid={
-																										validationForSecondStep
-																											.touched
-																											.softcap &&
-																										validationForSecondStep
-																											.errors
-																											.softcap
-																											? true
-																											: false
-																									}
-																								/>
-																								{validationForSecondStep
-																									.touched
-																									.softcap &&
-																								validationForSecondStep
-																									.errors
-																									.softcap ? (
-																									<FormFeedback type="invalid">
-																										{
-																											validationForSecondStep
-																												.errors
-																												.softcap
-																										}
-																									</FormFeedback>
-																								) : null}
-																							</div>
-																						</div>
-
-																						<div className="col-lg-6">
-																							<div className="mb-3">
-																								<label
-																									htmlFor="basicpill-firstname-input"
-																									className="form-label"
-																								>
-																									Hardcap
-																								</label>
-																								<Input
-																									name="hardcap"
-																									type="text"
-																									onChange={
-																										validationForSecondStep.handleChange
-																									}
-																									onBlur={
-																										validationForSecondStep.handleBlur
-																									}
-																									value={
-																										validationForSecondStep
-																											.values
-																											.hardcap ||
-																										""
-																									}
-																									invalid={
-																										validationForSecondStep
-																											.touched
-																											.hardcap &&
-																										validationForSecondStep
-																											.errors
-																											.hardcap
-																											? true
-																											: false
-																									}
-																								/>
-																								{validationForSecondStep
-																									.touched
-																									.hardcap &&
-																								validationForSecondStep
-																									.errors
-																									.hardcap ? (
-																									<FormFeedback type="invalid">
-																										{
-																											validationForSecondStep
-																												.errors
-																												.hardcap
-																										}
-																									</FormFeedback>
-																								) : null}
-																							</div>
-																						</div>
-																					</div>
-																					<div className="row">
-																						<div className="col-lg-6">
-																							<div className="mb-3">
-																								<label
-																									htmlFor="basicpill-firstname-input"
-																									className="form-label"
-																								>
-																									Minimum
-																									Buy
-																								</label>
-																								<Input
-																									name="minimumBuy"
-																									type="text"
-																									onChange={
-																										validationForSecondStep.handleChange
-																									}
-																									onBlur={
-																										validationForSecondStep.handleBlur
-																									}
-																									value={
-																										validationForSecondStep
-																											.values
-																											.minimumBuy ||
-																										""
-																									}
-																									invalid={
-																										validationForSecondStep
-																											.touched
-																											.minimumBuy &&
-																										validationForSecondStep
-																											.errors
-																											.minimumBuy
-																											? true
-																											: false
-																									}
-																								/>
-																								{validationForSecondStep
-																									.touched
-																									.minimumBuy &&
-																								validationForSecondStep
-																									.errors
-																									.minimumBuy ? (
-																									<FormFeedback type="invalid">
-																										{
-																											validationForSecondStep
-																												.errors
-																												.minimumBuy
-																										}
-																									</FormFeedback>
-																								) : null}
-																							</div>
-																						</div>
-
-																						<div className="col-lg-6">
-																							<div className="mb-3">
-																								<label
-																									htmlFor="basicpill-firstname-input"
-																									className="form-label"
-																								>
-																									Maximum
-																									Buy
-																								</label>
-																								<Input
-																									name="maximumBuy"
-																									type="text"
-																									onChange={
-																										validationForSecondStep.handleChange
-																									}
-																									onBlur={
-																										validationForSecondStep.handleBlur
-																									}
-																									value={
-																										validationForSecondStep
-																											.values
-																											.maximumBuy ||
-																										""
-																									}
-																									invalid={
-																										validationForSecondStep
-																											.touched
-																											.maximumBuy &&
-																										validationForSecondStep
-																											.errors
-																											.maximumBuy
-																											? true
-																											: false
-																									}
-																								/>
-																								{validationForSecondStep
-																									.touched
-																									.maximumBuy &&
-																								validationForSecondStep
-																									.errors
-																									.maximumBuy ? (
-																									<FormFeedback type="invalid">
-																										{
-																											validationForSecondStep
-																												.errors
-																												.maximumBuy
-																										}
-																									</FormFeedback>
-																								) : null}
-																							</div>
-																						</div>
-																					</div>
-																					<div className="row">
-																						<div className="col-lg-6">
-																							<div className="mb-3">
-																								<label
-																									htmlFor="basicpill-vatno-input"
-																									className="form-label"
-																								>
-																									Refund
-																									Type
-																								</label>
-
-																								<Input
-																									name="refundType"
-																									type="select"
-																									onChange={
-																										validationForSecondStep.handleChange
-																									}
-																									onBlur={
-																										validationForSecondStep.handleBlur
-																									}
-																									value={
-																										validationForSecondStep
-																											.values
-																											.refundType ||
-																										""
-																									}
-																									invalid={
-																										validationForSecondStep
-																											.touched
-																											.refundType &&
-																										validationForSecondStep
-																											.errors
-																											.refundType
-																											? true
-																											: false
-																									}
-																								>
-																									<option
-																										value=""
-																										disabled
-																									>
-																										Select
-																										refund
-																										type
-																									</option>
-																									{launchpadOptions?.refundType &&
-																										launchpadOptions?.refundType.data.map(
-																											(
-																												type,
-																												refundTypeIndex
-																											) => (
-																												<option
-																													key={
-																														type.name +
-																														refundTypeIndex
-																													}
-																													value={
-																														type.name
-																													}
-																												>
-																													{
-																														type.name
-																													}
-																												</option>
-																											)
-																										)}
-																								</Input>
-																								{validationForSecondStep
-																									.touched
-																									.refundType &&
-																								validationForSecondStep
-																									.errors
-																									.refundType ? (
-																									<FormFeedback type="invalid">
-																										{
-																											validationForSecondStep
-																												.errors
-																												.refundType
-																										}
-																									</FormFeedback>
-																								) : null}
-																							</div>
-																						</div>
-
-																						<div className="col-lg-6">
-																							<div className="mb-3">
-																								<label
-																									htmlFor="basicpill-vatno-input"
-																									className="form-label"
-																								>
-																									Router
-																								</label>
-																								<Input
-																									name="router"
-																									type="select"
-																									onChange={
-																										validationForSecondStep.handleChange
-																									}
-																									onBlur={
-																										validationForSecondStep.handleBlur
-																									}
-																									value={
-																										validationForSecondStep
-																											.values
-																											.router ||
-																										""
-																									}
-																									invalid={
-																										validationForSecondStep
-																											.touched
-																											.router &&
-																										validationForSecondStep
-																											.errors
-																											.router
-																											? true
-																											: false
-																									}
-																								>
-																									<option
-																										value=""
-																										disabled
-																									>
-																										Select
-																										router
-																									</option>
-																									{launchpadOptions?.router &&
-																										launchpadOptions?.router.data.map(
-																											(
-																												type,
-																												routerIndex
-																											) => (
-																												<option
-																													key={
-																														type.name +
-																														routerIndex
-																													}
-																													value={
-																														type.name
-																													}
-																												>
-																													{
-																														type.name
-																													}
-																												</option>
-																											)
-																										)}
-																								</Input>
-																								{validationForSecondStep
-																									.touched
-																									.router &&
-																								validationForSecondStep
-																									.errors
-																									.router ? (
-																									<FormFeedback type="invalid">
-																										{
-																											validationForSecondStep
-																												.errors
-																												.router
-																										}
-																									</FormFeedback>
-																								) : null}
-																							</div>
-																						</div>
-																					</div>
-
-																					<div className="row">
-																						<div className="col-lg-6">
-																							<div className="mb-3">
-																								<label
-																									htmlFor="basicpill-firstname-input"
-																									className="form-label"
-																								>
-																									liquidity
-																								</label>
-																								<Input
-																									name="liquidity"
-																									type="text"
-																									onChange={
-																										validationForSecondStep.handleChange
-																									}
-																									onBlur={
-																										validationForSecondStep.handleBlur
-																									}
-																									value={
-																										validationForSecondStep
-																											.values
-																											.liquidity ||
-																										""
-																									}
-																									invalid={
-																										validationForSecondStep
-																											.touched
-																											.liquidity &&
-																										validationForSecondStep
-																											.errors
-																											.liquidity
-																											? true
-																											: false
-																									}
-																								/>
-																								{validationForSecondStep
-																									.touched
-																									.liquidity &&
-																								validationForSecondStep
-																									.errors
-																									.liquidity ? (
-																									<FormFeedback type="invalid">
-																										{
-																											validationForSecondStep
-																												.errors
-																												.liquidity
-																										}
-																									</FormFeedback>
-																								) : null}
-																							</div>
-																						</div>
-
-																						<div className="col-lg-6">
-																							<div className="mb-3">
-																								<label
-																									htmlFor="basicpill-firstname-input"
-																									className="form-label"
-																								>
-																									Listing
-																									rate
-																								</label>
-																								<Input
-																									name="listingRate"
-																									type="text"
-																									onChange={
-																										validationForSecondStep.handleChange
-																									}
-																									onBlur={
-																										validationForSecondStep.handleBlur
-																									}
-																									value={
-																										validationForSecondStep
-																											.values
-																											.listingRate ||
-																										""
-																									}
-																									invalid={
-																										validationForSecondStep
-																											.touched
-																											.listingRate &&
-																										validationForSecondStep
-																											.errors
-																											.listingRate
-																											? true
-																											: false
-																									}
-																								/>
-																								{validationForSecondStep
-																									.touched
-																									.listingRate &&
-																								validationForSecondStep
-																									.errors
-																									.listingRate ? (
-																									<FormFeedback type="invalid">
-																										{
-																											validationForSecondStep
-																												.errors
-																												.listingRate
-																										}
-																									</FormFeedback>
-																								) : null}
-																							</div>
-																						</div>
-																					</div>
-
-																					<div className="row">
-																						<div className="col-lg-6">
-																							<FormGroup className="mb-3">
-																								<Label>
-																									Start
-																									Date
-																								</Label>
-
-																								<InputGroup>
-																									<Flatpickr
-																										className={`form-control d-block ${
-																											validationForSecondStep
-																												.touched
-																												.startDate &&
-																											validationForSecondStep
-																												.errors
-																												.startDate
-																												? "is-invalid"
-																												: ""
-																										}`}
-																										placeholder="Select start date"
-																										options={{
-																											altInput: true,
-																											altFormat:
-																												"Y-m-d H:i",
-																											dateFormat:
-																												"Y-m-d H:i",
-																											enableTime: true,
-																											time_24hr: true,
-																										}}
-																										onChange={(
-																											date,
-																											dateInString
-																										) => {
-																											handleDateChange(
-																												"startDate",
-																												dateInString
-																											);
-																										}}
-																										onBlur={
-																											validationForSecondStep.handleBlur
-																										}
-																										value={
-																											validationForSecondStep
-																												.values
-																												.startDate ||
-																											""
-																										}
-																										invalid={
-																											validationForSecondStep
-																												.touched
-																												.startDate &&
-																											validationForSecondStep
-																												.errors
-																												.startDate
-																												? "true"
-																												: "false"
-																										}
-																										name="startDate"
-																									/>
-																									{/* <div className="input-group-append">
-																										<span className="input-group-text">
-																											<i className="mdi mdi-clock-outline" />
-																										</span>
-																									</div> */}
-																									{validationForSecondStep
-																										.touched
-																										.startDate &&
-																									validationForSecondStep
-																										.errors
-																										.startDate ? (
-																										<FormFeedback type="invalid">
-																											{
-																												validationForSecondStep
-																													.errors
-																													.startDate
-																											}
-																										</FormFeedback>
-																									) : null}
-																								</InputGroup>
-																							</FormGroup>
-																						</div>
-
-																						<div className="col-lg-6">
-																							<FormGroup className="mb-3">
-																								<Label>
-																									End
-																									Date
-																								</Label>
-
-																								<InputGroup>
-																									<Flatpickr
-																										className={`form-control d-block ${
-																											validationForSecondStep
-																												.touched
-																												.endDate &&
-																											validationForSecondStep
-																												.errors
-																												.endDate
-																												? "is-invalid"
-																												: ""
-																										}`}
-																										placeholder="Select end date"
-																										options={{
-																											altInput: true,
-																											altFormat:
-																												"Y-m-d H:i",
-																											dateFormat:
-																												"Y-m-d H:i",
-																											enableTime: true,
-																											time_24hr: true,
-																										}}
-																										name="endDate"
-																										onChange={(
-																											date,
-																											dateInString
-																										) => {
-																											handleDateChange(
-																												"endDate",
-																												dateInString
-																											);
-																										}}
-																										onBlur={
-																											validationForSecondStep.handleBlur
-																										}
-																										value={
-																											validationForSecondStep
-																												.values
-																												.endDate ||
-																											""
-																										}
-																									/>
-																									{/* <div className="input-group-append">
-																										<span className="input-group-text">
-																											<i className="mdi mdi-clock-outline" />
-																										</span>
-																									</div> */}
-																									{validationForSecondStep
-																										.touched
-																										.endDate &&
-																									validationForSecondStep
-																										.errors
-																										.endDate ? (
-																										<FormFeedback type="invalid">
-																											{
-																												validationForSecondStep
-																													.errors
-																													.endDate
-																											}
-																										</FormFeedback>
-																									) : null}
-																								</InputGroup>
-																							</FormGroup>
-																						</div>
-																					</div>
-
-																					<div className="row">
-																						<div className="col-lg-12">
-																							<div className="mb-3">
-																								<label
-																									htmlFor="basicpill-firstname-input"
-																									className="form-label"
-																								>
-																									Liquidity
-																									lockup
-																									(days)
-																								</label>
-																								<Input
-																									name="liquidityLockup"
-																									type="text"
-																									onChange={
-																										validationForSecondStep.handleChange
-																									}
-																									onBlur={
-																										validationForSecondStep.handleBlur
-																									}
-																									value={
-																										validationForSecondStep
-																											.values
-																											.liquidityLockup ||
-																										""
-																									}
-																									invalid={
-																										validationForSecondStep
-																											.touched
-																											.liquidityLockup &&
-																										validationForSecondStep
-																											.errors
-																											.liquidityLockup
-																											? true
-																											: false
-																									}
-																								/>
-																								{validationForSecondStep
-																									.touched
-																									.liquidityLockup &&
-																								validationForSecondStep
-																									.errors
-																									.liquidityLockup ? (
-																									<FormFeedback type="invalid">
-																										{
-																											validationForSecondStep
-																												.errors
-																												.liquidityLockup
-																										}
-																									</FormFeedback>
-																								) : null}
-																							</div>
-																						</div>
-																					</div>
-																				</div>
-																			</Form>
+																			<StageDetailStepSecond
+																				validationForSecondStep={
+																					validationForSecondStep
+																				}
+																				validationForFirstStep={
+																					validationForFirstStep
+																				}
+																				handleAddNewStage={
+																					handleAddNewStage
+																				}
+																				stageDetails={
+																					stageDetails
+																				}
+																				handleDeleteStage={
+																					handleDeleteStage
+																				}
+																				handleEditStage={
+																					handleEditStage
+																				}
+																			/>
 																		</TabPane>
 
 																		<TabPane
@@ -2170,505 +2040,20 @@ const Launchpad = (props) => {
 																				3
 																			}
 																		>
-																			<Form
-																				// form={true}
-																				// onSubmit={
-																				// 	validationForThirdStep.handleSubmit
-																				// }
-																				onSubmit={(
-																					e
-																				) => {
-																					e.preventDefault();
-																					validationForThirdStep.handleSubmit();
-																					return false;
-																				}}
-																			>
-																				<div>
-																					<div className="text-center mb-4">
-																						<h5>
-																							Add
-																							Additional
-																							Info
-																						</h5>
-																						<p className="card-title-desc">
-																							Let
-																							people
-																							know
-																							who
-																							you
-																							are
-																						</p>
-																					</div>
-																					<div className="row">
-																						<div className="col-lg-6">
-																							<div className="mb-3">
-																								<label
-																									htmlFor="basicpill-firstname-input"
-																									className="form-label"
-																								>
-																									LogoURL
-																								</label>
-																								<Input
-																									name="logoURL"
-																									type="text"
-																									onChange={
-																										validationForThirdStep.handleChange
-																									}
-																									onBlur={
-																										validationForThirdStep.handleBlur
-																									}
-																									value={
-																										validationForThirdStep
-																											.values
-																											.logoURL ||
-																										""
-																									}
-																									invalid={
-																										validationForThirdStep
-																											.touched
-																											.logoURL &&
-																										validationForThirdStep
-																											.errors
-																											.logoURL
-																											? true
-																											: false
-																									}
-																								/>
-																								{validationForThirdStep
-																									.touched
-																									.logoURL &&
-																								validationForThirdStep
-																									.errors
-																									.logoURL ? (
-																									<FormFeedback type="invalid">
-																										{
-																											validationForThirdStep
-																												.errors
-																												.logoURL
-																										}
-																									</FormFeedback>
-																								) : null}
-																							</div>
-																						</div>
-
-																						<div className="col-lg-6">
-																							<div className="mb-3">
-																								<label
-																									htmlFor="basicpill-firstname-input"
-																									className="form-label"
-																								>
-																									Website
-																								</label>
-																								<Input
-																									name="websiteURL"
-																									type="text"
-																									onChange={
-																										validationForThirdStep.handleChange
-																									}
-																									onBlur={
-																										validationForThirdStep.handleBlur
-																									}
-																									value={
-																										validationForThirdStep
-																											.values
-																											.websiteURL ||
-																										""
-																									}
-																									invalid={
-																										validationForThirdStep
-																											.touched
-																											.websiteURL &&
-																										validationForThirdStep
-																											.errors
-																											.websiteURL
-																											? true
-																											: false
-																									}
-																								/>
-																								{validationForThirdStep
-																									.touched
-																									.websiteURL &&
-																								validationForThirdStep
-																									.errors
-																									.websiteURL ? (
-																									<FormFeedback type="invalid">
-																										{
-																											validationForThirdStep
-																												.errors
-																												.websiteURL
-																										}
-																									</FormFeedback>
-																								) : null}
-																							</div>
-																						</div>
-																					</div>
-
-																					<div className="row">
-																						<div className="col-lg-6">
-																							<div className="mb-3">
-																								<label
-																									htmlFor="basicpill-firstname-input"
-																									className="form-label"
-																								>
-																									Facebook
-																								</label>
-																								<Input
-																									name="facebook"
-																									type="text"
-																									onChange={
-																										validationForThirdStep.handleChange
-																									}
-																									onBlur={
-																										validationForThirdStep.handleBlur
-																									}
-																									value={
-																										validationForThirdStep
-																											.values
-																											.facebook ||
-																										""
-																									}
-																									invalid={
-																										validationForThirdStep
-																											.touched
-																											.facebook &&
-																										validationForThirdStep
-																											.errors
-																											.facebook
-																											? true
-																											: false
-																									}
-																								/>
-																								{validationForThirdStep
-																									.touched
-																									.facebook &&
-																								validationForThirdStep
-																									.errors
-																									.facebook ? (
-																									<FormFeedback type="invalid">
-																										{
-																											validationForThirdStep
-																												.errors
-																												.facebook
-																										}
-																									</FormFeedback>
-																								) : null}
-																							</div>
-																						</div>
-
-																						<div className="col-lg-6">
-																							<div className="mb-3">
-																								<label
-																									htmlFor="basicpill-firstname-input"
-																									className="form-label"
-																								>
-																									Twitter
-																								</label>
-																								<Input
-																									name="twitter"
-																									type="text"
-																									onChange={
-																										validationForThirdStep.handleChange
-																									}
-																									onBlur={
-																										validationForThirdStep.handleBlur
-																									}
-																									value={
-																										validationForThirdStep
-																											.values
-																											.twitter ||
-																										""
-																									}
-																									invalid={
-																										validationForThirdStep
-																											.touched
-																											.twitter &&
-																										validationForThirdStep
-																											.errors
-																											.twitter
-																											? true
-																											: false
-																									}
-																								/>
-																								{validationForThirdStep
-																									.touched
-																									.twitter &&
-																								validationForThirdStep
-																									.errors
-																									.twitter ? (
-																									<FormFeedback type="invalid">
-																										{
-																											validationForThirdStep
-																												.errors
-																												.twitter
-																										}
-																									</FormFeedback>
-																								) : null}
-																							</div>
-																						</div>
-																					</div>
-
-																					<div className="row">
-																						<div className="col-lg-6">
-																							<div className="mb-3">
-																								<label
-																									htmlFor="basicpill-firstname-input"
-																									className="form-label"
-																								>
-																									Github
-																								</label>
-																								<Input
-																									name="github"
-																									type="text"
-																									onChange={
-																										validationForThirdStep.handleChange
-																									}
-																									onBlur={
-																										validationForThirdStep.handleBlur
-																									}
-																									value={
-																										validationForThirdStep
-																											.values
-																											.github ||
-																										""
-																									}
-																									invalid={
-																										validationForThirdStep
-																											.touched
-																											.github &&
-																										validationForThirdStep
-																											.errors
-																											.github
-																											? true
-																											: false
-																									}
-																								/>
-																								{validationForThirdStep
-																									.touched
-																									.github &&
-																								validationForThirdStep
-																									.errors
-																									.github ? (
-																									<FormFeedback type="invalid">
-																										{
-																											validationForThirdStep
-																												.errors
-																												.github
-																										}
-																									</FormFeedback>
-																								) : null}
-																							</div>
-																						</div>
-
-																						<div className="col-lg-6">
-																							<div className="mb-3">
-																								<label
-																									htmlFor="basicpill-firstname-input"
-																									className="form-label"
-																								>
-																									Telegram
-																								</label>
-																								<Input
-																									name="telegram"
-																									type="text"
-																									onChange={
-																										validationForThirdStep.handleChange
-																									}
-																									onBlur={
-																										validationForThirdStep.handleBlur
-																									}
-																									value={
-																										validationForThirdStep
-																											.values
-																											.telegram ||
-																										""
-																									}
-																									invalid={
-																										validationForThirdStep
-																											.touched
-																											.telegram &&
-																										validationForThirdStep
-																											.errors
-																											.telegram
-																											? true
-																											: false
-																									}
-																								/>
-																								{validationForThirdStep
-																									.touched
-																									.telegram &&
-																								validationForThirdStep
-																									.errors
-																									.telegram ? (
-																									<FormFeedback type="invalid">
-																										{
-																											validationForThirdStep
-																												.errors
-																												.telegram
-																										}
-																									</FormFeedback>
-																								) : null}
-																							</div>
-																						</div>
-																					</div>
-
-																					<div className="row">
-																						<div className="col-lg-6">
-																							<div className="mb-3">
-																								<label
-																									htmlFor="basicpill-firstname-input"
-																									className="form-label"
-																								>
-																									Instagram
-																								</label>
-																								<Input
-																									name="instagram"
-																									type="text"
-																									onChange={
-																										validationForThirdStep.handleChange
-																									}
-																									onBlur={
-																										validationForThirdStep.handleBlur
-																									}
-																									value={
-																										validationForThirdStep
-																											.values
-																											.instagram ||
-																										""
-																									}
-																									invalid={
-																										validationForThirdStep
-																											.touched
-																											.instagram &&
-																										validationForThirdStep
-																											.errors
-																											.instagram
-																											? true
-																											: false
-																									}
-																								/>
-																								{validationForThirdStep
-																									.touched
-																									.instagram &&
-																								validationForThirdStep
-																									.errors
-																									.instagram ? (
-																									<FormFeedback type="invalid">
-																										{
-																											validationForThirdStep
-																												.errors
-																												.instagram
-																										}
-																									</FormFeedback>
-																								) : null}
-																							</div>
-																						</div>
-
-																						<div className="col-lg-6">
-																							<div className="mb-3">
-																								<label
-																									htmlFor="basicpill-firstname-input"
-																									className="form-label"
-																								>
-																									Reddit
-																								</label>
-																								<Input
-																									name="reddit"
-																									type="text"
-																									onChange={
-																										validationForThirdStep.handleChange
-																									}
-																									onBlur={
-																										validationForThirdStep.handleBlur
-																									}
-																									value={
-																										validationForThirdStep
-																											.values
-																											.reddit ||
-																										""
-																									}
-																									invalid={
-																										validationForThirdStep
-																											.touched
-																											.reddit &&
-																										validationForThirdStep
-																											.errors
-																											.reddit
-																											? true
-																											: false
-																									}
-																								/>
-																								{validationForThirdStep
-																									.touched
-																									.reddit &&
-																								validationForThirdStep
-																									.errors
-																									.reddit ? (
-																									<FormFeedback type="invalid">
-																										{
-																											validationForThirdStep
-																												.errors
-																												.reddit
-																										}
-																									</FormFeedback>
-																								) : null}
-																							</div>
-																						</div>
-																					</div>
-
-																					<div className="row">
-																						<div className="col-lg-12">
-																							<div className="mb-3">
-																								<label
-																									htmlFor="basicpill-firstname-input"
-																									className="form-label"
-																								>
-																									Description
-																								</label>
-																								<Input
-																									name="description"
-																									type="text"
-																									onChange={
-																										validationForThirdStep.handleChange
-																									}
-																									onBlur={
-																										validationForThirdStep.handleBlur
-																									}
-																									value={
-																										validationForThirdStep
-																											.values
-																											.description ||
-																										""
-																									}
-																									invalid={
-																										validationForThirdStep
-																											.touched
-																											.description &&
-																										validationForThirdStep
-																											.errors
-																											.description
-																											? true
-																											: false
-																									}
-																								/>
-																								{validationForThirdStep
-																									.touched
-																									.description &&
-																								validationForThirdStep
-																									.errors
-																									.description ? (
-																									<FormFeedback type="invalid">
-																										{
-																											validationForThirdStep
-																												.errors
-																												.description
-																										}
-																									</FormFeedback>
-																								) : null}
-																							</div>
-																						</div>
-																					</div>
-																				</div>
-																			</Form>
+																			<AdditionalInfoStepThird
+																				validationForThirdStep={
+																					validationForThirdStep
+																				}
+																				getCurrencyName={
+																					getCurrencyName
+																				}
+																				onEditorChange={
+																					onEditorChange
+																				}
+																				editor={
+																					editor
+																				}
+																			/>
 																		</TabPane>
 
 																		<TabPane
@@ -2676,723 +2061,59 @@ const Launchpad = (props) => {
 																				4
 																			}
 																		>
-																			<div>
-																				<div className="text-center mb-4">
-																					<h5>
-																						Finish
-																					</h5>
-																					<p className="card-title-desc">
-																						Review
-																						your
-																						information
-																					</p>
-																				</div>
-																			</div>
-																			<Card>
-																				<CardHeader>
-																					<h5 className="card-title mb-0">
-																						Review
-																					</h5>
-																				</CardHeader>
-																				<CardBody>
-																					<div>
-																						<div className="pb-2">
-																							<Row>
-																								<Col
-																									xl={
-																										3
-																									}
-																								>
-																									<div>
-																										<h5 className="font-size-15">
-																											Token
-																											Address
-																										</h5>
-																									</div>
-																								</Col>
-																								<div className="col-xl">
-																									<div className="text-muted">
-																										<p className="mb-2">
-																											{
-																												validationForFirstStep
-																													.values
-																													.tokenAddress
-																											}
-																										</p>
-																									</div>
-																								</div>
-																							</Row>
-																						</div>
+																			<TeamTokenomicWhitepaperInfoStepFour
+																				handleAddNewTeamInfo={
+																					handleAddNewTeamInfo
+																				}
+																				teamInfo={
+																					teamInfo
+																				}
+																				handleDeleteTeamInfo={
+																					handleDeleteTeamInfo
+																				}
+																				handleEditTeamInfo={
+																					handleEditTeamInfo
+																				}
+																				handleAddNewTokenomic={
+																					handleAddNewTokenomic
+																				}
+																				tokenomicDetails={
+																					tokenomicDetails
+																				}
+																				handleDeleteTokenomic={
+																					handleDeleteTokenomic
+																				}
+																				handleEditTokenomic={
+																					handleEditTokenomic
+																				}
+																				selectedFile={
+																					selectedFile
+																				}
+																				whitepaper={
+																					whitepaper
+																				}
+																			/>
+																		</TabPane>
 
-																						<div className="pb-2">
-																							<Row>
-																								<Col
-																									xl={
-																										3
-																									}
-																								>
-																									<div>
-																										<h5 className="font-size-15">
-																											Token
-																											Name
-																										</h5>
-																									</div>
-																								</Col>
-																								<div className="col-xl">
-																									<div className="text-muted">
-																										<p className="mb-2">
-																											{
-																												validationForFirstStep
-																													.values
-																													.tokenName
-																											}
-																										</p>
-																									</div>
-																								</div>
-																							</Row>
-																						</div>
-																						<div className="pb-2">
-																							<Row>
-																								<Col
-																									xl={
-																										3
-																									}
-																								>
-																									<div>
-																										<h5 className="font-size-15">
-																											Token
-																											Symbol
-																										</h5>
-																									</div>
-																								</Col>
-																								<div className="col-xl">
-																									<div className="text-muted">
-																										<p className="mb-2">
-																											{
-																												validationForFirstStep
-																													.values
-																													.tokenSymbol
-																											}
-																										</p>
-																									</div>
-																								</div>
-																							</Row>
-																						</div>
-
-																						<div className="pb-2">
-																							<Row>
-																								<Col
-																									xl={
-																										3
-																									}
-																								>
-																									<div>
-																										<h5 className="font-size-15">
-																											Token
-																											Decimal
-																										</h5>
-																									</div>
-																								</Col>
-																								<div className="col-xl">
-																									<div className="text-muted">
-																										<p className="mb-2">
-																											{
-																												validationForFirstStep
-																													.values
-																													.tokenDecimal
-																											}
-																										</p>
-																									</div>
-																								</div>
-																							</Row>
-																						</div>
-
-																						<div className="pb-2">
-																							<Row>
-																								<Col
-																									xl={
-																										3
-																									}
-																								>
-																									<div>
-																										<h5 className="font-size-15">
-																											Presale
-																											rate
-																										</h5>
-																									</div>
-																								</Col>
-																								<div className="col-xl">
-																									<div className="text-muted">
-																										<p className="mb-2">
-																											{
-																												validationForSecondStep
-																													.values
-																													.presaleRate
-																											}
-																										</p>
-																									</div>
-																								</div>
-																							</Row>
-																						</div>
-																						<div className="pb-2">
-																							<Row>
-																								<Col
-																									xl={
-																										3
-																									}
-																								>
-																									<div>
-																										<h5 className="font-size-15">
-																											Listing
-																											rate
-																										</h5>
-																									</div>
-																								</Col>
-																								<div className="col-xl">
-																									<div className="text-muted">
-																										<p className="mb-2">
-																											{
-																												validationForSecondStep
-																													.values
-																													.listingRate
-																											}
-																										</p>
-																									</div>
-																								</div>
-																							</Row>
-																						</div>
-																						<div className="pb-2">
-																							<Row>
-																								<Col
-																									xl={
-																										3
-																									}
-																								>
-																									<div>
-																										<h5 className="font-size-15">
-																											Listing
-																											rate
-																										</h5>
-																									</div>
-																								</Col>
-																								<div className="col-xl">
-																									<div className="text-muted">
-																										<p className="mb-2">
-																											{
-																												validationForSecondStep
-																													.values
-																													.listingRate
-																											}
-																										</p>
-																									</div>
-																								</div>
-																							</Row>
-																						</div>
-																						<div className="pb-2">
-																							<Row>
-																								<Col
-																									xl={
-																										3
-																									}
-																								>
-																									<div>
-																										<h5 className="font-size-15">
-																											Softcap
-																										</h5>
-																									</div>
-																								</Col>
-																								<div className="col-xl">
-																									<div className="text-muted">
-																										<p className="mb-2">
-																											{
-																												validationForSecondStep
-																													.values
-																													.softcap
-																											}
-																										</p>
-																									</div>
-																								</div>
-																							</Row>
-																						</div>
-																						<div className="pb-2">
-																							<Row>
-																								<Col
-																									xl={
-																										3
-																									}
-																								>
-																									<div>
-																										<h5 className="font-size-15">
-																											Hardcap
-																										</h5>
-																									</div>
-																								</Col>
-																								<div className="col-xl">
-																									<div className="text-muted">
-																										<p className="mb-2">
-																											{
-																												validationForSecondStep
-																													.values
-																													.hardcap
-																											}
-																										</p>
-																									</div>
-																								</div>
-																							</Row>
-																						</div>
-																						<div className="pb-2">
-																							<Row>
-																								<Col
-																									xl={
-																										3
-																									}
-																								>
-																									<div>
-																										<h5 className="font-size-15">
-																											Refund
-																											Type
-																										</h5>
-																									</div>
-																								</Col>
-																								<div className="col-xl">
-																									<div className="text-muted">
-																										<p className="mb-2">
-																											{
-																												validationForSecondStep
-																													.values
-																													.refundType
-																											}
-																										</p>
-																									</div>
-																								</div>
-																							</Row>
-																						</div>
-																						<div className="pb-2">
-																							<Row>
-																								<Col
-																									xl={
-																										3
-																									}
-																								>
-																									<div>
-																										<h5 className="font-size-15">
-																											Minimum
-																											buy
-																										</h5>
-																									</div>
-																								</Col>
-																								<div className="col-xl">
-																									<div className="text-muted">
-																										<p className="mb-2">
-																											{
-																												validationForSecondStep
-																													.values
-																													.minimumBuy
-																											}
-																										</p>
-																									</div>
-																								</div>
-																							</Row>
-																						</div>
-																						<div className="pb-2">
-																							<Row>
-																								<Col
-																									xl={
-																										3
-																									}
-																								>
-																									<div>
-																										<h5 className="font-size-15">
-																											Maximum
-																											buy
-																										</h5>
-																									</div>
-																								</Col>
-																								<div className="col-xl">
-																									<div className="text-muted">
-																										<p className="mb-2">
-																											{
-																												validationForSecondStep
-																													.values
-																													.maximumBuy
-																											}
-																										</p>
-																									</div>
-																								</div>
-																							</Row>
-																						</div>
-																						<div className="pb-2">
-																							<Row>
-																								<Col
-																									xl={
-																										3
-																									}
-																								>
-																									<div>
-																										<h5 className="font-size-15">
-																											Liquidity
-																										</h5>
-																									</div>
-																								</Col>
-																								<div className="col-xl">
-																									<div className="text-muted">
-																										<p className="mb-2">
-																											{
-																												validationForSecondStep
-																													.values
-																													.liquidity
-																											}
-																										</p>
-																									</div>
-																								</div>
-																							</Row>
-																						</div>
-																						<div className="pb-2">
-																							<Row>
-																								<Col
-																									xl={
-																										3
-																									}
-																								>
-																									<div>
-																										<h5 className="font-size-15">
-																											Start
-																											Time
-																										</h5>
-																									</div>
-																								</Col>
-																								<div className="col-xl">
-																									<div className="text-muted">
-																										<p className="mb-2">
-																											{
-																												validationForSecondStep
-																													.values
-																													.startDate
-																											}
-																										</p>
-																									</div>
-																								</div>
-																							</Row>
-																						</div>
-																						<div className="pb-2">
-																							<Row>
-																								<Col
-																									xl={
-																										3
-																									}
-																								>
-																									<div>
-																										<h5 className="font-size-15">
-																											End
-																											Time
-																										</h5>
-																									</div>
-																								</Col>
-																								<div className="col-xl">
-																									<div className="text-muted">
-																										<p className="mb-2">
-																											{
-																												validationForSecondStep
-																													.values
-																													.endDate
-																											}
-																										</p>
-																									</div>
-																								</div>
-																							</Row>
-																						</div>
-																						<div className="pb-2">
-																							<Row>
-																								<Col
-																									xl={
-																										3
-																									}
-																								>
-																									<div>
-																										<h5 className="font-size-15">
-																											Liquidity
-																											lockup
-																											time
-																										</h5>
-																									</div>
-																								</Col>
-																								<div className="col-xl">
-																									<div className="text-muted">
-																										<p className="mb-2">
-																											{
-																												validationForSecondStep
-																													.values
-																													.liquidityLockup
-																											}
-																										</p>
-																									</div>
-																								</div>
-																							</Row>
-																						</div>
-																						<div className="pb-2">
-																							<Row>
-																								<Col
-																									xl={
-																										3
-																									}
-																								>
-																									<div>
-																										<h5 className="font-size-15">
-																											Logo
-																											URL
-																										</h5>
-																									</div>
-																								</Col>
-																								<div className="col-xl">
-																									<div className="text-muted">
-																										<p className="mb-2">
-																											{
-																												validationForThirdStep
-																													.values
-																													.logoURL
-																											}
-																										</p>
-																									</div>
-																								</div>
-																							</Row>
-																						</div>
-																						<div className="pb-2">
-																							<Row>
-																								<Col
-																									xl={
-																										3
-																									}
-																								>
-																									<div>
-																										<h5 className="font-size-15">
-																											Website
-																										</h5>
-																									</div>
-																								</Col>
-																								<div className="col-xl">
-																									<div className="text-muted">
-																										<p className="mb-2">
-																											{
-																												validationForThirdStep
-																													.values
-																													.websiteURL
-																											}
-																										</p>
-																									</div>
-																								</div>
-																							</Row>
-																						</div>
-																						<div className="pb-2">
-																							<Row>
-																								<Col
-																									xl={
-																										3
-																									}
-																								>
-																									<div>
-																										<h5 className="font-size-15">
-																											Facebook
-																										</h5>
-																									</div>
-																								</Col>
-																								<div className="col-xl">
-																									<div className="text-muted">
-																										<p className="mb-2">
-																											{
-																												validationForThirdStep
-																													.values
-																													.facebook
-																											}
-																										</p>
-																									</div>
-																								</div>
-																							</Row>
-																						</div>
-																						<div className="pb-2">
-																							<Row>
-																								<Col
-																									xl={
-																										3
-																									}
-																								>
-																									<div>
-																										<h5 className="font-size-15">
-																											Twitter
-																										</h5>
-																									</div>
-																								</Col>
-																								<div className="col-xl">
-																									<div className="text-muted">
-																										<p className="mb-2">
-																											{
-																												validationForThirdStep
-																													.values
-																													.twitter
-																											}
-																										</p>
-																									</div>
-																								</div>
-																							</Row>
-																						</div>
-																						<div className="pb-2">
-																							<Row>
-																								<Col
-																									xl={
-																										3
-																									}
-																								>
-																									<div>
-																										<h5 className="font-size-15">
-																											Github
-																										</h5>
-																									</div>
-																								</Col>
-																								<div className="col-xl">
-																									<div className="text-muted">
-																										<p className="mb-2">
-																											{
-																												validationForThirdStep
-																													.values
-																													.github
-																											}
-																										</p>
-																									</div>
-																								</div>
-																							</Row>
-																						</div>
-																						<div className="pb-2">
-																							<Row>
-																								<Col
-																									xl={
-																										3
-																									}
-																								>
-																									<div>
-																										<h5 className="font-size-15">
-																											Telegram
-																										</h5>
-																									</div>
-																								</Col>
-																								<div className="col-xl">
-																									<div className="text-muted">
-																										<p className="mb-2">
-																											{
-																												validationForThirdStep
-																													.values
-																													.telegram
-																											}
-																										</p>
-																									</div>
-																								</div>
-																							</Row>
-																						</div>
-																						<div className="pb-2">
-																							<Row>
-																								<Col
-																									xl={
-																										3
-																									}
-																								>
-																									<div>
-																										<h5 className="font-size-15">
-																											Instagram
-																										</h5>
-																									</div>
-																								</Col>
-																								<div className="col-xl">
-																									<div className="text-muted">
-																										<p className="mb-2">
-																											{
-																												validationForThirdStep
-																													.values
-																													.instagram
-																											}
-																										</p>
-																									</div>
-																								</div>
-																							</Row>
-																						</div>
-																						<div className="pb-2">
-																							<Row>
-																								<Col
-																									xl={
-																										3
-																									}
-																								>
-																									<div>
-																										<h5 className="font-size-15">
-																											Discord
-																										</h5>
-																									</div>
-																								</Col>
-																								<div className="col-xl">
-																									<div className="text-muted">
-																										<p className="mb-2">
-																											{
-																												validationForThirdStep
-																													.values
-																													.discord
-																											}
-																										</p>
-																									</div>
-																								</div>
-																							</Row>
-																						</div>
-																						<div className="pb-2">
-																							<Row>
-																								<Col
-																									xl={
-																										3
-																									}
-																								>
-																									<div>
-																										<h5 className="font-size-15">
-																											Reddit
-																										</h5>
-																									</div>
-																								</Col>
-																								<div className="col-xl">
-																									<div className="text-muted">
-																										<p className="mb-2">
-																											{
-																												validationForThirdStep
-																													.values
-																													.reddit
-																											}
-																										</p>
-																									</div>
-																								</div>
-																							</Row>
-																						</div>
-																						<div className="pb-2">
-																							<Row>
-																								<Col
-																									xl={
-																										3
-																									}
-																								>
-																									<div>
-																										<h5 className="font-size-15">
-																											Description
-																										</h5>
-																									</div>
-																								</Col>
-																								<div className="col-xl">
-																									<div className="text-muted">
-																										<p className="mb-2">
-																											{
-																												validationForThirdStep
-																													.values
-																													.description
-																											}
-																										</p>
-																									</div>
-																								</div>
-																							</Row>
-																						</div>
-																					</div>
-																				</CardBody>
-																			</Card>
+																		<TabPane
+																			tabId={
+																				5
+																			}
+																		>
+																			<ReviewStepFive
+																				validationForThirdStep={
+																					validationForThirdStep
+																				}
+																				getCurrencyName={
+																					getCurrencyName
+																				}
+																				validationForFirstStep={
+																					validationForFirstStep
+																				}
+																				stageDetails={
+																					stageDetails
+																				}
+																			/>
 																		</TabPane>
 																	</TabContent>
 																	<ul className="pager wizard twitter-bs-wizard-pager-link">
@@ -3431,7 +2152,7 @@ const Launchpad = (props) => {
 																		<li
 																			className={
 																				activeTabFormStep ===
-																				4
+																				5
 																					? "next disabled"
 																					: "next"
 																			}
@@ -3439,9 +2160,15 @@ const Launchpad = (props) => {
 																			<Link
 																				to="#"
 																				className="btn btn-primary"
-																				onClick={() => {
+																				disabled={
+																					isLoading
+																				}
+																				onClick={(
+																					e
+																				) => {
+																					e.preventDefault();
 																					activeTabFormStep ===
-																					4
+																					5
 																						? handleFinalFormSubmit()
 																						: toggleTab(
 																								activeTabFormStep +
@@ -3450,7 +2177,7 @@ const Launchpad = (props) => {
 																				}}
 																			>
 																				{activeTabFormStep ===
-																				4
+																				5
 																					? "Submit"
 																					: "Next"}
 																				<i className="bx bx-chevron-right ms-1"></i>

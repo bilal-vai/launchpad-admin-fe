@@ -1,17 +1,9 @@
 import axios from "axios";
 import { apiUrl } from "../../config";
 
-export const totalTransaction = (data) =>
+export const getTotalLaunchpadService = (data) =>
 	axios
-		.get(`${apiUrl}/admin/dashboard/total-pix-transaction`, {
-			params: data,
-		})
-		.then((response) => response)
-		.catch((err) => err.response);
-
-export const totalClient = (data) =>
-	axios
-		.get(`${apiUrl}/admin/dashboard/get-total-pix-client`, {
+		.get(`${apiUrl}/admin/dashboard/get-total-launchpad`, {
 			params: data,
 		})
 		.then((response) => response)

@@ -27,6 +27,7 @@ import {
 } from "../../store/auth/actions";
 // import images
 import logo from "../../assets/images/logo_lyo.png";
+import lfi_logo from "../../assets/images/lfi-scan-logo.svg";
 //Import config
 import CarouselPage from "../Authentication/CarouselPage";
 import Countdown, { zeroPad } from "react-countdown";
@@ -125,7 +126,7 @@ const Login = (props) => {
 		dispatch(resendVerificationCode(verificationResponse.data));
 	};
 
-	document.title = "Login | LFinance";
+	document.title = "Login | LFi";
 
 	return (
 		<React.Fragment>
@@ -142,13 +143,13 @@ const Login = (props) => {
 												className="d-block auth-logo"
 											>
 												<img
-													src={logo}
+													src={lfi_logo}
 													alt=""
 													height="28"
 												/>{" "}
-												<span className="logo-txt">
+												{/* <span className="logo-txt">
 													LFinance
-												</span>
+												</span> */}
 											</Link>
 										</div>
 
@@ -338,7 +339,7 @@ const Login = (props) => {
 													</h5>
 													<p className="text-muted mt-2">
 														Sign in to continue to
-														LFinance Admin.
+														LFi Admin.
 													</p>
 												</div>
 												<Form
@@ -500,7 +501,7 @@ const Login = (props) => {
 										<div className="mt-4 mt-md-5 text-center">
 											<p className="mb-0">
 												© {new Date().getFullYear()}{" "}
-												LFinance
+												LFi
 											</p>
 										</div>
 									</div>

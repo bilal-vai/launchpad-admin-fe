@@ -120,23 +120,17 @@ const SidebarContent = (props) => {
 							]}
 						>
 							<li>
-								<Link
-									to="/launchpad-option"
-									className=""
-									aria-expanded={false}
-								>
-									<i className="fas fa-cog"></i>
-									<span>{props.t("Launchpad setting")}</span>
+								<Link to="/transaction" className="">
+									<i className="fas fa-history"></i>
+									<span>{props.t("Transactions")}</span>
 								</Link>
 							</li>
 						</HasAnyPermission>
 
-						{/* <HasAnyPermission
+						<HasAnyPermission
 							permission={[
-								"role add",
-								"role list",
-								"admin add",
-								"admin list",
+								"launchpad option add",
+								"launchpad option list",
 							]}
 						>
 							<li>
@@ -146,31 +140,197 @@ const SidebarContent = (props) => {
 									aria-expanded={false}
 								>
 									<i className="fas fa-cog"></i>
-									<span>
-										{props.t("Admin Role Permissions")}
-									</span>
+									<span>{props.t("Setting")}</span>
 								</Link>
 								<ul className="sub-menu">
 									<HasAnyPermission
-										permission={["admin add", "admin list"]}
+										permission={[
+											"launchpad option add",
+											"launchpad option list",
+										]}
 									>
 										<li>
-											<Link to="/admins" className="">
-												<span>{props.t("Admins")}</span>
+											<Link
+												to="/network-info"
+												className=""
+												aria-expanded={false}
+											>
+												<span>
+													{props.t(
+														"Network & currency info"
+													)}
+												</span>
 											</Link>
 										</li>
 									</HasAnyPermission>
 									<HasAnyPermission
-										permission={["role add", "role list"]}
+										permission={[
+											"launchpad option add",
+											"launchpad option list",
+										]}
 									>
 										<li>
-											<Link to="/roles" className="">
-												<span>{props.t("Roles")}</span>
+											<Link
+												to="/launchpad-option"
+												className=""
+												aria-expanded={false}
+											>
+												<span>
+													{props.t(
+														"Launchpad option setting"
+													)}
+												</span>
 											</Link>
+										</li>
+									</HasAnyPermission>
+
+									<HasAnyPermission
+										permission={[
+											"launchpad option add",
+											"launchpad option list",
+										]}
+									>
+										<li>
+											<Link
+												to="/#"
+												className="has-arrow"
+												aria-expanded={false}
+											>
+												<span>
+													{props.t("Admin & Role")}
+												</span>
+											</Link>
+											<ul className="sub-menu">
+												<HasAnyPermission
+													permission={[
+														"admin add",
+														"admin list",
+													]}
+												>
+													<li>
+														<Link
+															to="/admins"
+															className=""
+														>
+															<span>
+																{props.t(
+																	"Admin"
+																)}
+															</span>
+														</Link>
+													</li>
+												</HasAnyPermission>
+												<HasAnyPermission
+													permission={[
+														"launchpad option add",
+														"launchpad option list",
+													]}
+												>
+													<li>
+														<Link
+															to="/roles"
+															className=""
+															aria-expanded={
+																false
+															}
+														>
+															<span>
+																{props.t(
+																	"Roles"
+																)}
+															</span>
+														</Link>
+													</li>
+												</HasAnyPermission>
+											</ul>
 										</li>
 									</HasAnyPermission>
 								</ul>
 							</li>
+						</HasAnyPermission>
+						<HasAnyPermission
+							permission={["bridge admin", "bridge networks list", " bridge transaction list"]}
+						>
+						<li>
+							<Link
+								to="/#"
+								className="has-arrow"
+								aria-expanded={false}
+							>
+								<i className="fas fa-university"></i>
+								<span>{props.t("LFi Bridge")}</span>
+							</Link>
+							<ul className="sub-menu">
+								<li>
+									<Link
+										to="/bridge"
+										className=""
+										aria-expanded={false}
+									>
+										<span>
+											{props.t(
+												"Bridge Transactions"
+											)}
+										</span>
+									</Link>
+								</li>
+								<li>
+									<Link
+										to="/chains"
+										className=""
+										aria-expanded={false}
+									>
+										<span>
+											{props.t(
+												"Chains settings"
+											)}
+										</span>
+									</Link>
+								</li>	  			
+							</ul>
+						</li>
+						</HasAnyPermission>
+						{/* <HasAnyPermission
+							permission={["lyo bridge admin"]}
+						>
+						<li>
+							<Link
+								to="/#"
+								className="has-arrow"
+								aria-expanded={false}
+							>
+								<i className="fas fa-university"></i>
+								<span>{props.t("LYO Bridge")}</span>
+							</Link>
+							<ul className="sub-menu">
+								<li>
+									<Link
+										to="/transactions"
+										className=""
+										aria-expanded={false}
+									>
+										<span>
+											{props.t(
+												"Bridge Transactions"
+											)}
+										</span>
+									</Link>
+								</li>
+								<li>
+									<Link
+										to="/lyochains"
+										className=""
+										aria-expanded={false}
+									>
+										<span>
+											{props.t(
+												"Chains settings"
+											)}
+										</span>
+									</Link>
+								</li>	  			
+							</ul>
+						</li>
 						</HasAnyPermission> */}
 					</ul>
 				</div>
