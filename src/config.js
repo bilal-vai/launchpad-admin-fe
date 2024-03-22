@@ -11,7 +11,7 @@ if (environment === "production") {
 }
 if (environment === "development") {
 }
-apiUri = "https://api-staging.lfi.io";
+apiUri = "http://192.168.253.115:5052";
 wsLink = "ws://localhost:8090";
 apiUriBridgeLFI = process.env.REACT_APP_API_BRIDGE_URL_LFI;
 // apiUri = "https://api-staging.lfi.io";
